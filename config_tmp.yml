@@ -1,0 +1,10 @@
+data_transforms:
+  a_min: -1410
+  a_max: 3024
+data:
+  root_path: '/media/ubuntu/New Volume/jay/LiTS'
+  label_list: [1,2]
+  label_names: ['liver', 'tumor']
+  volume_channel: 2
+  sampling_deviation: 5
+  samples_per_slice: 2
