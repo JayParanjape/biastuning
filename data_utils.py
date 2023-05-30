@@ -21,16 +21,18 @@ class Slice_Transforms:
         #SAM encoder expects images to be centered around tehe following mean and variance, how to change it for medical datasets?
         self.pixel_mean = torch.Tensor([123.675, 116.28, 103.53]).view(-1,1,1).unsqueeze(0)
         self.pixel_std = torch.Tensor([53.395, 57.12, 57.375]).view(-1,1,1).unsqueeze(0)
-        self.resize = transforms.Resize(255, max_size=256, antialias=True)
+        self.img_size = config['data_transforms']['img_size']
+        self.resize = transforms.Resize(self.img_size-1, max_size=self.img_size, antialias=True)
         self.a_min = config['data_transforms']['a_min']
         self.a_max = config['data_transforms']['a_max']
+        
 
     def __call__(self, image, is_mask=False):
         # image = torch.Tensor(image)
         b_min=0
         if not is_mask:
             #scale intensities to 0-255
-            b_min,b_max = 0,255
+            b_min,b_max = 0, 255
             image = (image - self.a_min) / (self.a_max - self.a_min)
             image = image * (b_max - b_min) + b_min
             image = torch.clamp(image,b_min,b_max)
@@ -41,8 +43,8 @@ class Slice_Transforms:
         image = self.resize(image)
         #pad if necessary
         h, w = image.shape[-2:]
-        padh = 256 - h
-        padw = 256 - w
+        padh = self.img_size - h
+        padw = self.img_size - w
         image = pad(image, (0, padw, 0, padh), value=b_min)
         return image
 
@@ -63,21 +65,22 @@ class Generic_Dataset_3d(Dataset):
 
         self.populate_lists()
         if shuffle_list:
-            temp = list(zip(self.img_path_list, self.label_path_list, self.label_names))
-            random.shuffle(temp)
-            self.img_path_list, self.label_path_list, self.label_names = zip(*temp)
-            self.img_path_list = list(self.img_path_list)
-            self.label_path_list = list(self.label_path_list)
-            self.label_names = list(self.label_names)
+            p = [x for x in range(len(self.img_path_list))]
+            random.shuffle(p)
+            self.img_path_list = [self.img_path_list[pi] for pi in p]
+            self.label_path_list = [self.label_path_list[pi] for pi in p]
+            self.label_names_text = [self.label_names_text[pi] for pi in p]
 
 
         #define data transforms
         self.transform = Slice_Transforms(config=config)
 
     def populate_lists(self):
+        # print(self.folder_start, self.folder_end, self.label_list)
+
         for case_no in sorted(os.listdir(os.path.join(self.root_path,'images'))):
             case_idx = int(case_no[:case_no.find('.')])
-            if not(case_idx>=self.folder_start and case_idx<self.folder_end):
+            if not((case_idx>=self.folder_start) and (case_idx<self.folder_end)):
                 continue
             im_path = os.path.join(self.root_path, 'images',case_no)
             label_path = os.path.join(self.root_path, 'labels', case_no)
@@ -110,9 +113,17 @@ class Generic_Dataset_3d(Dataset):
         mu, sigma = (torch.argmax(torch.sum(gold, dim=(1,2)))), self.config['data']['sampling_deviation'] # mean and standard deviation
         s = (np.random.normal(mu, sigma, self.config['data']['samples_per_slice'])).astype(int)
         s = [max(i,0) for i in s]
-        s = [min(i,im.shape[0]-1) for i in s]
-        gold = gold[s]
-        gold = self.transform(gold, is_mask=True)
+        s = [min(i,gold.shape[0]-2) for i in s]
+        try:
+            gold = gold[s]
+            gold = self.transform(gold, is_mask=True)
+        except:
+            s = (np.random.normal(mu, sigma, self.config['data']['samples_per_slice'])).astype(int)
+            s = [max(i,0) for i in s]
+            s = [min(i,gold.shape[0]-2) for i in s]
+            gold = gold[s]
+            gold = self.transform(gold, is_mask=True)
+
 
         # plt.imshow(gold, cmap='gray')
         # plt.show()
