@@ -4,11 +4,11 @@ sam:
 
 img_type: 'ct'
 arch: "Prompt Adapted SAM"
-use_fdn: False
+use_fdn: True
 
 prompts:
-  USE_TEXT_PROMPT: False
-  USE_IMAGE_PROMPT: False
+  USE_TEXT_PROMPT: True
+  USE_IMAGE_PROMPT: True
   LOCATION: 'prepend'
   DROPOUT: 0.1
   NUM_TOKENS: 5
@@ -16,7 +16,7 @@ prompts:
 training:
   optimizer: 'adamw'
   lr: 1e-2
-  batch_size: 64
+  batch_size: 16
   num_epochs: 1000
   schedule_step: 200
   schedule_step_factor: 0.5

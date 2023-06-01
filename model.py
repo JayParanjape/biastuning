@@ -11,7 +11,7 @@ from functools import partial, reduce
 from operator import mul
 import math
 from typing import Union, List
-
+from model_components.fdn import FDN
 
 class Prompt_Adapted_SAM(nn.Module):
     def __init__(
@@ -27,6 +27,7 @@ class Prompt_Adapted_SAM(nn.Module):
         self.label_dict = label_text_dict
         self.prompt_config = config['prompts']
         self.im_type = config['img_type']
+        self.use_fdn = config['use_fdn']
 
         #define hyperparameters, can be taken to a config later
         prompt_embed_dim=256
@@ -74,6 +75,10 @@ class Prompt_Adapted_SAM(nn.Module):
                                     'other': self.num_classes
                                 })
 
+        #define feature denormalization module if it is to be used
+        if self.use_fdn:
+            self.FDN_branch = FDN(norm_nc=256, input_nc=3, reduction_factor=4).to(device)
+
         #initialize sam with pretrained weights
         sam_ckpt = '/home/ubuntu/Desktop/Domain_Adaptation_Project/repos/segment-anything/checkpoints/sam_vit_b_01ec64.pth'
         sam_state_dict = torch.load(sam_ckpt)
@@ -108,6 +113,9 @@ class Prompt_Adapted_SAM(nn.Module):
             prompt_text = torch.stack(prompt_text)
         
         image_embeddings = self.sam_encoder(x_img)
+        if self.use_fdn:
+            image_embeddings = self.FDN_branch(image_embeddings, x_img)
+
         text_inputs = (clip.tokenize(x_text)).to(self.device)
         # with torch.no_grad():
         text_features = self.clip_model.encode_text(text_inputs)

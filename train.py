@@ -42,7 +42,9 @@ def train(model, tr_dataset, val_dataset, criterion, optimizer, sav_path='./chec
                 with torch.set_grad_enabled(True):
                     optimizer.zero_grad()
                     outputs = model(inputs, text_li)
-                    seg_loss = criterion(outputs, labels.float())
+                    seg_loss=0
+                    for c in criterion:
+                        seg_loss += c(outputs, labels.float())
                     seg_loss.backward()
                     optimizer.step()
                     running_loss += seg_loss.cpu()
@@ -98,4 +100,100 @@ def train(model, tr_dataset, val_dataset, criterion, optimizer, sav_path='./chec
                 best_dice = epoch_dice
                 torch.save(model.state_dict(),sav_path)
 
+    return model
+
+def train_dl(model, dataloaders, dataset_sizes, criterion, optimizer, scheduler, sav_path='./checkpoints/temp.pth', num_epochs=25, bs=32, device='cuda:0'):
+    model = model.to(device)
+    best_dice = 0
+
+    print("Training parameters: \n----------")
+    print("batch size: ", bs)
+    print("num epochs: ", num_epochs)
+    for epoch in range(num_epochs):
+        print(f'Epoch {epoch}/{num_epochs - 1}')
+        print('-' * 10)
+        # Each epoch has a training and validation phase
+        for phase in ['train', 'val']:
+            if phase == 'train':
+                model.train()  # Set model to training mode
+            else:
+                model.eval()   # Set model to evaluate mode
+
+            running_loss = 0.0
+            running_intersection = 0
+            running_union = 0
+            running_corrects = 0
+            running_dice = 0
+            intermediate_count = 0
+            count = 0
+            preds_all = []
+            gold = []
+
+            # Iterate over data.
+            for inputs, labels,text_idxs, text in dataloaders[phase]:
+                
+                count+=1
+                intermediate_count += inputs.shape[0]
+
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+
+                # forward
+                # track history if only in train
+                with torch.set_grad_enabled(phase == 'train'):
+                    outputs = model(inputs, text)
+                    # print(outputs.shape)
+                    # print(outputs)
+                    loss=0
+                    seg_loss = 0
+                    for c in criterion:
+                        seg_loss += c(outputs, labels.float())
+                    loss += seg_loss
+                    
+                    # backward + optimize only if in training phase
+                    if phase == 'train':
+                        loss.backward()
+                        optimizer.step()
+
+                with torch.no_grad():
+                    preds = (outputs>=0.5)
+                    # preds_all.append(preds.cpu())
+                    # gold.append(labels.cpu())
+                    # epoch_dice = dice_coef(preds,labels)
+                    # if count%100==0:
+                    #     print('iteration dice: ', epoch_dice)
+
+
+                    # statistics
+                    running_loss += loss.item() * inputs.size(0)
+                    ri, ru = running_stats(labels,preds)
+                    running_dice += dice_collated(ri,ru)
+                    # if count%5==0:
+                    #     print(count)
+                    #     print(running_loss, intermediate_count)
+                    #     print(running_loss/intermediate_count)
+            
+            if phase == 'train':
+                scheduler.step()
+            print("sanity check for preds: ", preds.any())
+            epoch_loss = running_loss / ((dataset_sizes[phase]))
+            epoch_dice = running_dice / ((dataset_sizes[phase]))
+            # epoch_dice = dice_coef(torch.cat(preds_all,axis=0),torch.cat(gold,axis=0))
+            print(f'{phase} Loss: {epoch_loss:.4f} Dice: {epoch_dice:.4f}')            
+
+            # deep copy the model
+            if phase == 'val' and epoch_dice > best_dice:
+                best_loss = epoch_loss
+                best_dice = epoch_dice
+                torch.save(model.state_dict(),sav_path)
+
+
+
+    print(f'Best val loss: {best_loss:4f}, best val accuracy: {best_dice:2f}')
+
+    # load best model weights
+    # model.load_state_dict(best_model_wts)
     return model

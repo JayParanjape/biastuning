@@ -26,3 +26,9 @@ def dice_collated(running_intersection, running_union, smooth =1):
 def dice_batchwise(running_intersection, running_union, smooth =1):
     dice = ((2. * running_intersection + smooth)/(running_union + smooth))
     return dice
+
+def dice_loss(y_pred, y_true):
+    numerator = (2 * torch.sum(y_true * y_pred, axis=(1,2)))
+    denominator = torch.sum(y_true + y_pred, axis=(1,2))
+
+    return 1 - torch.mean(numerator / denominator)
