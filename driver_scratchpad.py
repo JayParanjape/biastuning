@@ -24,20 +24,26 @@ def parse_args():
                         help='pretrained model path')
     parser.add_argument('--training_strategy', default='biastuning', help='how to train the model')
 
+    parser.add_argument('--device', default='cuda:0', help='device to train on')
+
     args = parser.parse_args()
 
     return args
 
 def main_datautils(config):
+    selected_idxs = [0,12,42,79,100]
     print(config)
     dataset_dict, dataset_sizes, label_dict = get_data(config, tr_folder_start=0, tr_folder_end=78, val_folder_start=78, val_folder_end=104)
     print(len(dataset_dict['train']))
-    temp = (dataset_dict['train'][0])
-    print(temp[0].shape)
-    print(temp[1].shape)
-    plt.imshow(temp[1], cmap='gray')
-    plt.show()
-    print(temp[-1])
+    for i in selected_idxs:
+        temp = (dataset_dict['train'][i])
+        print(temp[0].shape)
+        print(temp[1].shape)
+        plt.imshow(temp[0].permute(1,2,0), cmap='gray')
+        plt.show()
+        plt.imshow(temp[1], cmap='gray')
+        plt.show()
+        print(temp[-1])
 
 def main_model(config):
     print(config)
@@ -76,11 +82,11 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
     #freeze correct weights
     for p in model.parameters():
         p.requires_grad=False
-    if training_strategy=='biastuning':
+    if 'biastuning' in training_strategy:
         for name, p in model.named_parameters():
-            if 'bias' in name and 'clip' not in name:
+            if 'bias' in name:
                 p.requires_grad = True
-    elif training_strategy=='prompt_tuning':
+    elif 'prompt_tuning' in training_strategy:
         for name,p in model.named_parameters():
             if 'prompt' in name:
                 p.requires_grad = True
@@ -88,10 +94,27 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
                 p.requires_grad = True
             if 'Text_Embedding_Affine' in name:
                 p.requires_grad = True
-    elif training_strategy=='fdn':
+    elif 'fdn' in training_strategy:
         for name,p in model.named_parameters():
             if 'FDN' in name:
                 p.requires_grad = True
+
+    #train common layers for all strategies
+    for name, p in model.named_parameters():
+        if 'norm' in name.lower():
+            p.requires_grad = True
+        if 'pos_embed' in name.lower():
+            p.requires_grad = True
+        if 'Text_Embedding_Affine' in name:
+            p.requires_grad = True
+        if 'prompt' in name:
+            p.requires_grad = True
+        # if 'decoder' in name:
+        #     p.requires_grad = True
+        #disable clip params for now
+        if 'clip' in name.lower():
+            p.requires_grad = False
+
 
     #training parameters
     print('number of trainable parameters: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
@@ -104,6 +127,10 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
         criterion = [dice_loss]
     elif training_params['loss']=='dice+CE':
         criterion = [dice_loss, nn.BCELoss()]
+    elif training_params['loss']=='weighted CE':
+        criterion = [weighted_ce_loss]
+    elif training_params['loss']=='weighted CE+dice':
+        criterion = [weighted_ce_loss, dice_loss]
     else:
         criterion = [nn.BCELoss()]
     
@@ -132,4 +159,4 @@ if __name__ == '__main__':
     # main_test(data_config, model_config, args.pretrained_path)
 
     # for training the model
-    main_train(data_config, model_config, args.pretrained_path, args.save_path, args.training_strategy, device='cuda:0')
+    main_train(data_config, model_config, args.pretrained_path, args.save_path, args.training_strategy, device=args.device)

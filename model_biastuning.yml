@@ -1,23 +1,23 @@
 sam:
   img_size: 256
-  num_classes: 2
+  num_classes: 5
 
-img_type: 'ct'
+img_type: 'image'
 arch: "Prompt Adapted SAM"
 use_fdn: False
 prompts:
-  USE_TEXT_PROMPT: False
+  USE_TEXT_PROMPT: True
   USE_IMAGE_PROMPT: False
   LOCATION: 'prepend'
-  DROPOUT: 0.1
+  DROPOUT: 0.5
   NUM_TOKENS: 5
 
 training:
   optimizer: 'adamw'
   lr: 1e-2
-  batch_size: 64
+  batch_size: 32
   num_epochs: 1000
   schedule_step: 200
   schedule_step_factor: 0.5
   weight_decay: 1e-7
-  loss: 'dice'
+  loss: 'weighted CE'

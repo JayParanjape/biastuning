@@ -179,7 +179,16 @@ class IDRID_Dataset(Dataset):
 
 
         #define data transforms
+        self.idrid_transform = transforms.Compose([
+            # transforms.RandomHorizontalFlip(),
+            transforms.PILToTensor(),
+            transforms.RandomAdjustSharpness(2,0.5),
+            transforms.RandomAdjustSharpness(0.5,0.5),
+            # transforms.RandomEqualize(0.5),
+            # transforms.RandomRotation(15)
+        ])
         self.transform = Slice_Transforms(config=config)
+
 
     def populate_lists(self):
         # print(self.folder_start, self.folder_end, self.label_list)
@@ -202,13 +211,23 @@ class IDRID_Dataset(Dataset):
         return len(self.img_path_list)
     
     def __getitem__(self, index):
-        img = torch.Tensor(np.array(Image.open(self.img_path_list[index])))
-        if self.config['data']['volume_channel']==2:
-            img = img.permute(2,0,1).unsqueeze(0)
+        img = Image.open(self.img_path_list[index])
+        # img = torch.Tensor(np.array(Image.open(self.img_path_list[index])))
+        # if self.config['data']['volume_channel']==2:
+        #     img = img.permute(2,0,1)
+        if self.is_train:
+            img = self.idrid_transform(img)
+        # print("debug0: ",img.shape)
+        else:
+            img = torch.Tensor(np.array(img))
+            if self.config['data']['volume_channel']==2:
+                img = img.permute(2,0,1)
+        img = img.unsqueeze(0)
         # print("debug1: ",img.shape)
+
         img = self.transform(img)
         img = img[0]
-        # print("debug2: ",img.shape)
+        
 
         try:
             label = torch.Tensor(np.array(Image.open(self.label_path_list[index])))
@@ -243,7 +262,7 @@ def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folde
     if config['data']['name']=='IDRID':
         for x in ['train','val']:
             if x=='train':
-                dataset_dict[x] = IDRID_Dataset(config, folder_start=0, folder_end=40, shuffle_list=True)
+                dataset_dict[x] = IDRID_Dataset(config, folder_start=0, folder_end=40, shuffle_list=True, is_train=True)
             if x=='val':
                 dataset_dict[x] = IDRID_Dataset(config, folder_start=40, folder_end=60, shuffle_list=False)
             dataset_sizes[x] = len(dataset_dict[x])

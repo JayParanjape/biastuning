@@ -32,3 +32,15 @@ def dice_loss(y_pred, y_true):
     denominator = torch.sum(y_true + y_pred, axis=(1,2))
 
     return 1 - torch.mean(numerator / denominator)
+
+def weighted_ce_loss(y_pred, y_true, alpha=64, smooth=1):
+    weight1 = torch.sum(y_true==1,dim=(1,2))+smooth
+    weight0 = torch.sum(y_true==0, dim=(1,2))+smooth
+    multiplier_1 = weight0/(weight1*alpha)
+    multiplier_1 = multiplier_1.view(-1,1,1)
+    # print(multiplier_1.shape)
+    # print(y_pred.shape)
+    # print(y_true.shape)
+
+    loss = -torch.mean(torch.mean((multiplier_1*y_true*torch.log(y_pred)) + (1-y_true)*(torch.log(1-y_pred)),dim=(1,2)))
+    return loss

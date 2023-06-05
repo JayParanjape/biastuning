@@ -86,7 +86,10 @@ class Prompt_Adapted_SAM(nn.Module):
             if self.img_size!=1024:
                 #pos embed can be loaded only when image size is 1024
                 if "pos_embed" in k:
-                    _ = sam_state_dict.pop(k)
+                    full_matrix = sam_state_dict.pop(k)
+                    adapted_matrix = nn.functional.adaptive_avg_pool2d(full_matrix.permute(0,3,1,2), (self.sam_encoder.pos_embed.shape[1], self.sam_encoder.pos_embed.shape[2]))
+                    adapted_matrix = adapted_matrix.permute(0,2,3,1)
+                    sam_state_dict[k] = adapted_matrix
             elif "image_encoder." in k:
                 sam_state_dict[k[14:]] = sam_state_dict.pop(k)
             elif "prompt_encoder." in k:

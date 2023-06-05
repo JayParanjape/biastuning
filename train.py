@@ -178,7 +178,8 @@ def train_dl(model, dataloaders, dataset_sizes, criterion, optimizer, scheduler,
             
             if phase == 'train':
                 scheduler.step()
-            print("sanity check for preds: ", preds.any())
+            print("all 0 sanity check for preds: ", preds.any())
+            print("all 1 sanity check for preds: ", not preds.all())
             epoch_loss = running_loss / ((dataset_sizes[phase]))
             epoch_dice = running_dice / ((dataset_sizes[phase]))
             # epoch_dice = dice_coef(torch.cat(preds_all,axis=0),torch.cat(gold,axis=0))
