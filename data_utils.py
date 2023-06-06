@@ -148,6 +148,32 @@ class Generic_Dataset_3d(Dataset):
         return im, gold, label_segmask_no, label_text
 
 
+class IDRID_Transform():
+    def __init__(self, degree=15, saturation=1.5, brightness=1.5):
+        self.degree = degree
+        self.saturation = saturation
+        self.brightness = brightness
+
+    def __call__(self, img, mask):
+        #flip horizontally with some probability
+        p1 = random.random()
+        if p1<0.5:
+            img = F.hflip(img)
+            mask = F.hflip(mask)
+        #rotate with p1 probability
+        p2 = random.random()
+        if p2<0.5:
+            img = F.rotate(img, angle = self.degree)
+            mask = F.rotate(mask, angle=self.degree)
+        p3 = random.random()
+        if p3<0.2:
+            img = F.adjust_saturation(img, self.saturation)
+        p4 = random.random()
+        if p4<0.5:
+            img = F.adjust_brightness(img, self.brightness*random.random())
+        return img, mask
+            
+
 class IDRID_Dataset(Dataset):
     def __init__(self, config, is_train=False, folder_start=0, folder_end=40, shuffle_list=True):
         super().__init__()
@@ -179,14 +205,7 @@ class IDRID_Dataset(Dataset):
 
 
         #define data transforms
-        self.idrid_transform = transforms.Compose([
-            # transforms.RandomHorizontalFlip(),
-            transforms.PILToTensor(),
-            transforms.RandomAdjustSharpness(2,0.5),
-            transforms.RandomAdjustSharpness(0.5,0.5),
-            # transforms.RandomEqualize(0.5),
-            # transforms.RandomRotation(15)
-        ])
+        self.idrid_transform = IDRID_Transform()
         self.transform = Slice_Transforms(config=config)
 
 
@@ -211,17 +230,23 @@ class IDRID_Dataset(Dataset):
         return len(self.img_path_list)
     
     def __getitem__(self, index):
-        img = Image.open(self.img_path_list[index])
+        img = torch.as_tensor(np.array(Image.open(self.img_path_list[index])))
+        try:
+            label = torch.Tensor(np.array(Image.open(self.label_path_list[index])))
+        except:
+            #no label for this image is equivalent to all black label
+            label = torch.zeros((self.config['data_transforms']['img_size'], self.config['data_transforms']['img_size']))
         # img = torch.Tensor(np.array(Image.open(self.img_path_list[index])))
-        # if self.config['data']['volume_channel']==2:
-        #     img = img.permute(2,0,1)
+        if self.config['data']['volume_channel']==2:
+            img = img.permute(2,0,1)
+        label = label.unsqueeze(0)
         if self.is_train:
-            img = self.idrid_transform(img)
+            img, label = self.idrid_transform(img, label)
         # print("debug0: ",img.shape)
-        else:
-            img = torch.Tensor(np.array(img))
-            if self.config['data']['volume_channel']==2:
-                img = img.permute(2,0,1)
+        # else:
+            # img = torch.as_tensor(np.array(img))
+            # if self.config['data']['volume_channel']==2:
+            #     img = img.permute(2,0,1)
         img = img.unsqueeze(0)
         # print("debug1: ",img.shape)
 
@@ -229,17 +254,13 @@ class IDRID_Dataset(Dataset):
         img = img[0]
         
 
-        try:
-            label = torch.Tensor(np.array(Image.open(self.label_path_list[index])))
-        except:
-            #no label for this image is equivalent to all black label
-            label = torch.zeros((self.config['data_transforms']['img_size'], self.config['data_transforms']['img_size']))
+        
         label_text = self.label_names_text[index]
         label_segmask_no = self.label_list[self.label_names.index(label_text)]
 
         #convert general mask into prompted segmentation mask per according to label name
         # print('debug3: ', label.shape)
-        label = label.unsqueeze(0).unsqueeze(0)
+        label = label.unsqueeze(0)
         gold = self.transform(label, is_mask=True)
         # print('debug4: ', gold.shape)
         gold=gold[0,0]
