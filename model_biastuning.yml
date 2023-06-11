@@ -9,13 +9,13 @@ prompts:
   USE_TEXT_PROMPT: True
   USE_IMAGE_PROMPT: False
   LOCATION: 'prepend'
-  DROPOUT: 0.5
+  DROPOUT: 0
   NUM_TOKENS: 5
 
 training:
   optimizer: 'adamw'
   lr: 4e-3
-  batch_size: 32
+  batch_size: 8
   num_epochs: 1000
   schedule_step: 200
   schedule_step_factor: 0.5

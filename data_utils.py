@@ -51,7 +51,6 @@ class Slice_Transforms:
         return image
 
 
-
 class Generic_Dataset_3d(Dataset):
     def __init__(self, config, is_train=False, folder_start=0, folder_end=40, shuffle_list=True):
         super().__init__()
@@ -149,33 +148,106 @@ class Generic_Dataset_3d(Dataset):
 
 
 class IDRID_Transform():
-    def __init__(self, degree=15, saturation=1.5, brightness=1.5):
-        self.degree = degree
-        self.saturation = saturation
-        self.brightness = brightness
+    def __init__(self, config):
+        self.pixel_mean = torch.Tensor([123.675, 116.28, 103.53]).view(-1,1,1)
+        self.pixel_std = torch.Tensor([53.395, 57.12, 57.375]).view(-1,1,1)
+        self.degree = config['data_transforms']['rotation_angle']
+        self.saturation = config['data_transforms']['saturation']
+        self.brightness = config['data_transforms']['brightness']
+        self.random_crop_size = config['data_transforms']['random_crop_size']
+        self.img_size = config['data_transforms']['img_size']
+        self.resize = transforms.Resize(self.img_size-1, max_size=self.img_size, antialias=True)
 
-    def __call__(self, img, mask):
-        #flip horizontally with some probability
-        p1 = random.random()
-        if p1<0.5:
-            img = F.hflip(img)
-            mask = F.hflip(mask)
-        #rotate with p1 probability
-        p2 = random.random()
-        if p2<0.5:
-            img = F.rotate(img, angle = self.degree)
-            mask = F.rotate(mask, angle=self.degree)
-        # p3 = random.random()
-        # if p3<0.2:
-        #     img = F.adjust_saturation(img, self.saturation)
-        # p4 = random.random()
-        # if p4<0.5:
-        #     img = F.adjust_brightness(img, self.brightness*random.random())
+        self.data_transforms = config['data_transforms']
+
+    def __call__(self, img, mask, apply_norm, is_train):
+        #crop the image so that only the main arrea is in consideration
+        img = img[:,:,270:3700]
+        mask = mask[:,:,270:3700]
+        if is_train:
+            #flip horizontally with some probability
+            if self.data_transforms['use_horizontal_flip']:
+                p = random.random()
+                if p<0.5:
+                    img = F.hflip(img)
+                    mask = F.hflip(mask)
+
+            #rotate with p1 probability
+            if self.data_transforms['use_rotation']:
+                p = random.random()
+                if p<0.5:
+                    img = F.rotate(img, angle = self.degree)
+                    mask = F.rotate(mask, angle=self.degree)
+
+            #adjust saturation with some probability
+            if self.data_transforms['use_saturation']:
+                p = random.random()
+                if p<0.2:
+                    img = F.adjust_saturation(img, self.saturation)
+            
+            #adjust brightness with some probability
+            if self.data_transforms['use_brightness']:
+                p = random.random()
+                if p<0.5:
+                    img = F.adjust_brightness(img, self.brightness*random.random())
+
+        #take random crops of img size X img_size such that label is non zero
+        if self.data_transforms['use_random_crop']:
+            fallback = 20
+            fall_back_ctr = 0
+            repeat_flag = True
+            while(repeat_flag):
+                fall_back_ctr += 1                    
+                t = transforms.RandomCrop((self.img_size, self.img_size))
+                i,j,h,w = t.get_params(img, (self.img_size, self.img_size))
+                
+                #if mask is all zeros, exit the loop
+                if not mask.any():
+                    repeat_flag = False
+                
+                #fallback to avoid long loops
+                if fall_back_ctr >= fallback:
+                    temp1, temp2, temp3 = np.where(mask!=0)
+                    point_of_interest = random.choice(list(range(len(temp2))))
+                    i = temp2[point_of_interest] - (h//2)
+                    j = temp3[point_of_interest] - (w//2)
+                    repeat_flag = False
+
+                cropped_img = F.crop(img, i, j, h, w)
+                cropped_mask = F.crop(mask, i, j, h, w)
+                if cropped_mask.any():
+                    repeat_flag = False
+            img = cropped_img
+            mask = cropped_mask
+        else:
+            #if no random crops then perform resizing
+            img = self.resize(img)
+            mask = self.resize(mask)
+            #pad if necessary
+            h, w = img.shape[-2:]
+            padh = self.img_size - h
+            padw = self.img_size - w
+            img = pad(img, (0, padw, 0, padh), value=b_min)
+            mask = pad(mask, (0, padw, 0, padh), value=b_min)
+
+
+        #apply centering based on SAM's expected mean and variance
+        if apply_norm:
+            b_min=0
+            #scale intensities to 0-255
+            b_min,b_max = 0, 255
+            img = (img - self.data_transforms['a_min']) / (self.data_transforms['a_max'] - self.data_transforms['a_min'])
+            img = img * (b_max - b_min) + b_min
+            img = torch.clamp(img,b_min,b_max)
+
+            #center around SAM's expected mean
+            img = (img - self.pixel_mean)/self.pixel_std
+            
         return img, mask
             
 
 class IDRID_Dataset(Dataset):
-    def __init__(self, config, is_train=False, folder_start=0, folder_end=40, shuffle_list=True):
+    def __init__(self, config, is_train=False, folder_start=0, folder_end=40, shuffle_list=True, apply_norm=True):
         super().__init__()
         self.root_path = config['data']['root_path']
         self.img_path_list = []
@@ -187,6 +259,7 @@ class IDRID_Dataset(Dataset):
         self.folder_start = folder_start
         self.folder_end = folder_end
         self.config = config
+        self.apply_norm = apply_norm
         self.acronym = {
             'Microaneurysms': 'MA',
             'Haemorrhages': 'HE',
@@ -205,9 +278,7 @@ class IDRID_Dataset(Dataset):
 
 
         #define data transforms
-        self.idrid_transform = IDRID_Transform()
-        self.transform = Slice_Transforms(config=config)
-
+        self.idrid_transform = IDRID_Transform(config = config)
 
     def populate_lists(self):
         # print(self.folder_start, self.folder_end, self.label_list)
@@ -236,42 +307,29 @@ class IDRID_Dataset(Dataset):
         except:
             #no label for this image is equivalent to all black label
             label = torch.zeros((self.config['data_transforms']['img_size'], self.config['data_transforms']['img_size']))
-        # img = torch.Tensor(np.array(Image.open(self.img_path_list[index])))
+
         if self.config['data']['volume_channel']==2:
             img = img.permute(2,0,1)
         label = label.unsqueeze(0)
-        if self.is_train:
-            img, label = self.idrid_transform(img, label)
-        # print("debug0: ",img.shape)
-        # else:
-            # img = torch.as_tensor(np.array(img))
-            # if self.config['data']['volume_channel']==2:
-            #     img = img.permute(2,0,1)
-        img = img.unsqueeze(0)
-        # print("debug1: ",img.shape)
 
-        img = self.transform(img)
-        img = img[0]
-        
+        print("before idrid transform: ", img.shape)
+        img, label = self.idrid_transform(img, label, apply_norm=self.apply_norm, is_train = self.is_train)
+        print("after idrid transform: ", img.shape)
 
         
         label_text = self.label_names_text[index]
         label_segmask_no = self.label_list[self.label_names.index(label_text)]
 
-        #convert general mask into prompted segmentation mask per according to label name
-        # print('debug3: ', label.shape)
-        label = label.unsqueeze(0)
-        gold = self.transform(label, is_mask=True)
-        # print('debug4: ', gold.shape)
-        gold=gold[0,0]
-        gold = (gold>=0.5)+0
+        #idrid has separate masks according to the labels already, so no extra processing needed
+        label=label[0]
+        label = (label>=0.5)+0
 
-        # print('debug5: ', gold.shape, gold.any())
+        # print('debug5: ', label.shape, label.any())
 
-        return img, gold, label_segmask_no, label_text
+        return img, label, label_segmask_no, label_text
 
 
-def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folder_end):
+def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folder_end, use_norm=True):
     dataset_dict = {}
     dataloader_dict = {}
     dataset_sizes = {}
@@ -283,9 +341,9 @@ def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folde
     if config['data']['name']=='IDRID':
         for x in ['train','val']:
             if x=='train':
-                dataset_dict[x] = IDRID_Dataset(config, folder_start=0, folder_end=40, shuffle_list=True, is_train=True)
+                dataset_dict[x] = IDRID_Dataset(config, folder_start=0, folder_end=40, shuffle_list=True, is_train=True, apply_norm=use_norm)
             if x=='val':
-                dataset_dict[x] = IDRID_Dataset(config, folder_start=40, folder_end=60, shuffle_list=False)
+                dataset_dict[x] = IDRID_Dataset(config, folder_start=40, folder_end=60, shuffle_list=False, apply_norm=use_norm)
             dataset_sizes[x] = len(dataset_dict[x])
 
     else:

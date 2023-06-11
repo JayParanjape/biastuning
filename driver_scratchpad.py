@@ -30,20 +30,20 @@ def parse_args():
 
     return args
 
-def main_datautils(config):
+def main_datautils(config, use_norm=True):
     selected_idxs = [0,12,42,79,100]
     print(config)
-    dataset_dict, dataset_sizes, label_dict = get_data(config, tr_folder_start=0, tr_folder_end=78, val_folder_start=78, val_folder_end=104)
+    dataset_dict, dataset_sizes, label_dict = get_data(config, tr_folder_start=0, tr_folder_end=78, val_folder_start=78, val_folder_end=104, use_norm=use_norm)
     print(len(dataset_dict['train']))
     for i in selected_idxs:
         temp = (dataset_dict['train'][i])
+        print(temp[-1])
         print(temp[0].shape)
         print(temp[1].shape)
         plt.imshow(temp[0].permute(1,2,0), cmap='gray')
         plt.show()
         plt.imshow(temp[1], cmap='gray')
         plt.show()
-        print(temp[-1])
 
 def main_model(config):
     print(config)
@@ -72,6 +72,8 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
             dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
 
     #load model
+    #change the img size in model config according to data config
+    model_config['sam']['img_size'] = data_config['data_transforms']['img_size']
     if model_config['arch']=='Prompt Adapted SAM':
         model = Prompt_Adapted_SAM(model_config, label_dict, device)
 
@@ -149,7 +151,7 @@ if __name__ == '__main__':
         model_config = yaml.load(f, Loader=yaml.FullLoader)
     
     # #for checking data_utils
-    # main_datautils(data_config)
+    # main_datautils(data_config, use_norm=False)
 
     # #for checking model
     # main_model(config=model_config)
