@@ -165,12 +165,12 @@ class IDRID_Transform():
         if p2<0.5:
             img = F.rotate(img, angle = self.degree)
             mask = F.rotate(mask, angle=self.degree)
-        p3 = random.random()
-        if p3<0.2:
-            img = F.adjust_saturation(img, self.saturation)
-        p4 = random.random()
-        if p4<0.5:
-            img = F.adjust_brightness(img, self.brightness*random.random())
+        # p3 = random.random()
+        # if p3<0.2:
+        #     img = F.adjust_saturation(img, self.saturation)
+        # p4 = random.random()
+        # if p4<0.5:
+        #     img = F.adjust_brightness(img, self.brightness*random.random())
         return img, mask
             
 

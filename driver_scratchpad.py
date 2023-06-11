@@ -123,15 +123,14 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
         optimizer = optim.AdamW(model.parameters(), lr=float(training_params['lr']), weight_decay=float(training_params['weight_decay']))
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=training_params['schedule_step'], gamma=training_params['schedule_step_factor'])
     
-    if training_params['loss']=='dice':
-        criterion = [dice_loss]
-    elif training_params['loss']=='dice+CE':
-        criterion = [dice_loss, nn.BCELoss()]
-    elif training_params['loss']=='weighted CE':
-        criterion = [weighted_ce_loss]
-    elif training_params['loss']=='weighted CE+dice':
-        criterion = [weighted_ce_loss, dice_loss]
-    else:
+    criterion = []
+    if 'dice' in training_params['loss']:
+        criterion.append(dice_loss)
+    if 'focal' in training_params['loss']:
+        criterion.append(focal_loss)
+    if 'weighted CE' in training_params['loss']:
+        criterion.append(weighted_ce_loss)
+    if criterion==[]:
         criterion = [nn.BCELoss()]
     
     #train the model
