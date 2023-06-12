@@ -3,7 +3,6 @@ data_transforms:
   a_max: 255
   img_size: 600
   use_random_crop: True
-  random_crop_size: 256
   use_rotation: False
   rotation_angle: 10
   use_saturation: False

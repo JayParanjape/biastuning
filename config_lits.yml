@@ -1,7 +1,15 @@
 data_transforms:
   a_min: -1410
   a_max: 3024
-  img_size: 256
+  img_size: 400
+  use_random_crop: True
+  use_rotation: True
+  rotation_angle: 10
+  use_saturation: False
+  saturation: 2
+  use_brightness: False
+  brightness: 2
+  use_horizontal_flip: False
 data:
   name: LITS
   root_path: '/media/ubuntu/New Volume/jay/LiTS'

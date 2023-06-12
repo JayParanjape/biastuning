@@ -70,6 +70,11 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
         dataloader_dict = {}
         for x in ['train','val']:
             dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
+    elif data_config['data']['name']=='ENDOVIS':
+        dataset_dict, dataset_sizes, label_dict = get_data(data_config, tr_folder_start=0, tr_folder_end=180, val_folder_start=180, val_folder_end=304)
+        dataloader_dict = {}
+        for x in ['train','val']:
+            dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
 
     #load model
     #change the img size in model config according to data config
@@ -123,6 +128,8 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
     training_params = model_config['training']
     if training_params['optimizer'] == 'adamw':
         optimizer = optim.AdamW(model.parameters(), lr=float(training_params['lr']), weight_decay=float(training_params['weight_decay']))
+    elif training_params['optimizer'] == 'sgd':
+        optimizer = optim.SGD(model.parameters(), lr=float(training_params['lr']), weight_decay=float(training_params['weight_decay']), momentum=0.9)
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=training_params['schedule_step'], gamma=training_params['schedule_step_factor'])
     
     criterion = []
@@ -139,6 +146,8 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
     if data_config['data']['name']=='LITS':
         model = train(model, dataset_dict['train'], dataset_dict['val'], criterion, optimizer, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
     elif data_config['data']['name']=='IDRID':
+        model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
+    elif data_config['data']['name']=='ENDOVIS':
         model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
 
 

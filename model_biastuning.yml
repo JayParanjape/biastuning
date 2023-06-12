@@ -1,5 +1,5 @@
 sam:
-  img_size: 256
+  img_size: 400
   num_classes: 5
 
 img_type: 'image'
@@ -14,10 +14,10 @@ prompts:
 
 training:
   optimizer: 'adamw'
-  lr: 4e-3
+  lr: 4e-4
   batch_size: 8
   num_epochs: 1000
-  schedule_step: 200
+  schedule_step: 2000
   schedule_step_factor: 0.5
   weight_decay: 1e-2
-  loss: 'weighted CE+focal'
+  loss: 'weighted CE+dice+focal'

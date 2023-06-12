@@ -5,7 +5,6 @@ import sys
 import numpy as np
 import pandas as pd
 import torch
-from PIL import Image
 from matplotlib import pyplot as plt
 from PIL import Image
 from torch.utils.data import Dataset, TensorDataset
@@ -16,6 +15,8 @@ from torch.nn.functional import pad
 from skimage.transform import resize
 import nibabel as nib
 import time
+
+from data_transforms.endovis_transform import ENDOVIS_Transform
 
 class Slice_Transforms:
     def __init__(self, config=None):
@@ -154,7 +155,6 @@ class IDRID_Transform():
         self.degree = config['data_transforms']['rotation_angle']
         self.saturation = config['data_transforms']['saturation']
         self.brightness = config['data_transforms']['brightness']
-        self.random_crop_size = config['data_transforms']['random_crop_size']
         self.img_size = config['data_transforms']['img_size']
         self.resize = transforms.Resize(self.img_size-1, max_size=self.img_size, antialias=True)
 
@@ -329,6 +329,80 @@ class IDRID_Dataset(Dataset):
         return img, label, label_segmask_no, label_text
 
 
+class Endovis_Dataset(Dataset):
+    def __init__(self, config, start=0, end=200, is_train=False, shuffle_list = True, apply_norm=True):
+        super().__init__()
+        self.root_path = config['data']['root_path']
+        self.img_names = []
+        self.img_path_list = []
+        self.label_path_list = []
+        self.label_list = []
+        self.is_train = is_train
+        self.start = start
+        self.end = end
+        self.label_names = config['data']['label_names']
+        self.config = config
+        self.apply_norm = apply_norm
+
+        self.populate_lists()
+        if shuffle_list:
+            p = [x for x in range(len(self.img_path_list))]
+            random.shuffle(p)
+            self.img_path_list = [self.img_path_list[pi] for pi in p]
+            self.img_names = [self.img_names[pi] for pi in p]
+            self.label_path_list = [self.label_path_list[pi] for pi in p]
+            self.label_list = [self.label_list[pi] for pi in p]
+
+        #define data transform
+        self.data_transform = ENDOVIS_Transform(config=config)
+    
+    def populate_lists(self):
+        #generate dataset for instrument 1 4 training
+        for dataset_num in os.listdir(self.root_path):
+            if 'dataset' not in dataset_num:
+                continue
+            lbl_folder_path = os.path.join(self.root_path, dataset_num, 'ground_truth')
+            frames_folder_path = os.path.join(self.root_path, dataset_num, 'left_frames')
+            for frame_no in os.listdir(frames_folder_path):
+                if int(frame_no[5:8])>=self.start and int(frame_no[5:8])<self.end:
+                    for label_name in self.label_names:
+                        lbl_path = os.path.join(lbl_folder_path, label_name.replace(' ','_')+'_labels',frame_no)
+                        
+                        #important decision here - include all black labels or not
+                        if not os.path.exists(lbl_path):
+                            continue
+                        self.img_names.append(frame_no)
+                        self.img_path_list.append(os.path.join(frames_folder_path, frame_no))
+                        self.label_list.append(label_name)
+                        self.label_path_list.append(lbl_path)
+
+    def __len__(self):
+        return len(self.img_path_list)
+    
+    def __getitem__(self, index):
+        img = torch.as_tensor(np.array(Image.open(self.img_path_list[index]).convert("RGB")))
+        try:
+            label = torch.Tensor(np.array(Image.open(self.label_path_list[index])))
+        except:
+            1/0
+            label = torch.zeros(img.shape[0], img.shape[1])
+
+        if self.config['data']['volume_channel']==2:
+            img = img.permute(2,0,1)
+        label = label.unsqueeze(0)
+        label = (label>0)+0
+        label_of_interest = self.label_list[index]
+        img, label = self.data_transform(img, label, is_train=self.is_train, apply_norm=self.apply_norm)
+
+        #convert all grayscale pixels due to resizing back to 0, 1
+        label = (label>=0.5)+0
+        label = label[0]
+
+
+        return img, label, self.img_path_list[index], label_of_interest
+
+
+
 def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folder_end, use_norm=True):
     dataset_dict = {}
     dataloader_dict = {}
@@ -346,6 +420,13 @@ def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folde
                 dataset_dict[x] = IDRID_Dataset(config, folder_start=40, folder_end=60, shuffle_list=False, apply_norm=use_norm)
             dataset_sizes[x] = len(dataset_dict[x])
 
+    elif config['data']['name']=='ENDOVIS':
+        for x in ['train','val']:
+            if x=='train':
+                dataset_dict[x] = Endovis_Dataset(config, start=0, end=180, shuffle_list=True, is_train=True, apply_norm=use_norm)
+            if x=='val':
+                dataset_dict[x] = Endovis_Dataset(config, start=180, end=330, shuffle_list=False, apply_norm=use_norm)
+            dataset_sizes[x] = len(dataset_dict[x])
     else:
         for x in ['train','val']:
             if x=='train':

@@ -53,4 +53,5 @@ def focal_loss(y_pred, y_true, alpha=0.25, gamma=2):
     if alpha >= 0:
         alpha_t = alpha * y_true + (1 - alpha) * (1 - y_true)
         loss = alpha_t * loss
+    loss = torch.mean(loss, dim=(1,2))
     return loss.mean()
