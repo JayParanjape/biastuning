@@ -163,6 +163,65 @@ class Prompt_Adapted_SAM(nn.Module):
         high_res_masks = self.postprocess_masks(low_res_masks, (self.img_size,self.img_size), (self.img_size,self.img_size))
         return high_res_masks
 
+    def get_image_embeddings(self, x_img):
+        with torch.no_grad():
+            B, C, H, W = x_img.shape
+            image_embeddings = self.sam_encoder(x_img)
+            if self.use_fdn:
+                image_embeddings = self.FDN_branch(image_embeddings, x_img)
+            return image_embeddings
+
+    def get_masks_for_multiple_labels(self, img_embeds, x_text):
+        '''
+        img_embeds - image embeddings obtained from get_imgae_embeddings function
+        xtext - text prompts. image encoder wont be run and only the decoder will be run for each of these
+        '''
+        B = img_embeds.shape[0]
+        with torch.no_grad():
+            x_text = list(x_text)
+            if self.prompt_config['USE_TEXT_PROMPT']:
+                prompt_text = []
+                for t in x_text:
+                    try:
+                        prompt_text.append(self.text_prompt_embeddings[self.label_dict[t]])
+                    except:
+                        prompt_text.append(self.text_prompt_embeddings[-1])
+                prompt_text = torch.stack(prompt_text)
+
+            text_inputs = (clip.tokenize(x_text)).to(self.device)
+            text_features = self.clip_model.encode_text(text_inputs)
+
+            sparse_embeddings, dense_embeddings = self.prompt_encoder(
+                    points=None,
+                    boxes=None,
+                    masks=None,
+                )
+
+            if self.prompt_config['USE_TEXT_PROMPT']:
+                text_features_affine = self.Text_Embedding_Affine(text_features.float())
+            else:
+                text_features_affine = text_features[:,:256]
+
+            if self.prompt_config['USE_TEXT_PROMPT']:
+                text_features_affine = text_features_affine + prompt_text
+            
+            text_features_affine = text_features_affine.unsqueeze(1)
+            sparse_embeddings = sparse_embeddings.to(self.device).repeat(B,1,1)
+            sparse_embeddings = torch.cat(
+                [sparse_embeddings,text_features_affine], dim=1)
+
+            low_res_masks, iou_predictions = self.mask_decoder(
+                    image_embeddings=img_embeds,
+                    image_pe=self.prompt_encoder.get_dense_pe(),
+                    sparse_prompt_embeddings=sparse_embeddings,
+                    dense_prompt_embeddings=dense_embeddings,
+                    multimask_output=False,
+                    use_gsam = False
+                )
+            high_res_masks = self.postprocess_masks(low_res_masks, (self.img_size,self.img_size), (self.img_size,self.img_size))
+            return high_res_masks
+
+
     def postprocess_masks(
         self,
         masks: torch.Tensor,

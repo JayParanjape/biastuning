@@ -384,7 +384,6 @@ class Endovis_Dataset(Dataset):
         try:
             label = torch.Tensor(np.array(Image.open(self.label_path_list[index])))
         except:
-            1/0
             label = torch.zeros(img.shape[0], img.shape[1])
 
         if self.config['data']['volume_channel']==2:

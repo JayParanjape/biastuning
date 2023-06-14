@@ -5,6 +5,17 @@ from torchvision import transforms
 from torchvision.transforms import functional as F
 from torch.nn.functional import pad
 
+'''
+{
+	"Bipolar Forceps": 1,
+	"Prograsp Forceps": 2,
+	"Large Needle Driver": 3,
+	"Vessel Sealer": 4,
+	"Grasping Retractor": 5,
+  "Monopolar Curved Scissors": 6,
+  "Other": 7
+}
+'''
 
 class ENDOVIS_Transform():
     def __init__(self, config):
