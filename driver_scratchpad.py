@@ -33,11 +33,12 @@ def parse_args():
 def main_datautils(config, use_norm=True):
     selected_idxs = [0,12,42,79,100]
     print(config)
-    dataset_dict, dataset_sizes, label_dict = get_data(config, tr_folder_start=0, tr_folder_end=78, val_folder_start=78, val_folder_end=104, use_norm=use_norm)
+    dataset_dict, dataset_sizes, label_dict = get_data(config, tr_folder_start=0, tr_folder_end=78000, val_folder_start=0, val_folder_end=104000, use_norm=use_norm)
     print(len(dataset_dict['train']))
     for i in selected_idxs:
         temp = (dataset_dict['train'][i])
         print(temp[-1])
+        print(temp[-2])
         print(temp[0].shape)
         print(temp[1].shape)
         plt.imshow(temp[0].permute(1,2,0), cmap='gray')
@@ -72,6 +73,11 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
             dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
     elif data_config['data']['name']=='ENDOVIS':
         dataset_dict, dataset_sizes, label_dict = get_data(data_config, tr_folder_start=0, tr_folder_end=180, val_folder_start=180, val_folder_end=304)
+        dataloader_dict = {}
+        for x in ['train','val']:
+            dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
+    elif data_config['data']['name']=='ENDOVIS 18':
+        dataset_dict, dataset_sizes, label_dict = get_data(data_config, tr_folder_start=0, tr_folder_end=18000, val_folder_start=0, val_folder_end=34444)
         dataloader_dict = {}
         for x in ['train','val']:
             dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
@@ -148,6 +154,8 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
     elif data_config['data']['name']=='IDRID':
         model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
     elif data_config['data']['name']=='ENDOVIS':
+        model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
+    elif data_config['data']['name']=='ENDOVIS 18':
         model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
 
 

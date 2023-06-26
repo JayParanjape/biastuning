@@ -131,7 +131,6 @@ def train_dl(model, dataloaders, dataset_sizes, criterion, optimizer, scheduler,
 
             # Iterate over data.
             for inputs, labels,text_idxs, text in dataloaders[phase]:
-                
                 count+=1
                 intermediate_count += inputs.shape[0]
 
@@ -145,7 +144,7 @@ def train_dl(model, dataloaders, dataset_sizes, criterion, optimizer, scheduler,
                 # track history if only in train
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs, text)
-                    print(outputs)
+                    # print(outputs)
                     # print(outputs.shape)
                     # print(outputs)
                     loss=0

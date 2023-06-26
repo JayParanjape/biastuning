@@ -17,6 +17,7 @@ import nibabel as nib
 import time
 
 from data_transforms.endovis_transform import ENDOVIS_Transform
+from data_transforms.endovis_18_transform import ENDOVIS_18_Transform
 
 class Slice_Transforms:
     def __init__(self, config=None):
@@ -328,6 +329,95 @@ class IDRID_Dataset(Dataset):
 
         return img, label, label_segmask_no, label_text
 
+class Endovis_18(Dataset):
+    def __init__(self, config, start=0, end=200, is_train=False, shuffle_list = True, apply_norm=True):
+        super().__init__()
+        self.root_path = config['data']['root_path']
+        self.img_names = []
+        self.img_path_list = []
+        self.label_path_list = []
+        self.label_list = []
+        self.is_train = is_train
+        self.start = start
+        self.end = end
+        self.label_names = config['data']['label_names']
+        self.config = config
+        self.apply_norm = apply_norm
+        if self.is_train:
+            self.seqs = ['seq_1', 'seq_2', 'seq_3', 'seq_5', 'seq_6', 'seq_9', 'seq_10', 'seq_11', 'seq_13', 'seq_14', 'seq_15']
+        else:
+            self.seqs = ['seq_4', 'seq_7', 'seq_12', 'seq_16']
+
+        self.label_dict = {
+            'background tissue': [[0,0,0]],
+            'surgical instrument': [[0,255,0],[0,255,255],[125,255,12]],
+            'kidney parenchyma': [[255,55,0]],
+            'covered kidney': [[24,55,125]],
+            'thread': [[187,155,25]],
+            'clamps': [[0,255,125]],
+            'suturing needle': [[255,255,125]],
+            'suction instrument': [[123,15,175]],
+            'small intestine': [[124,155,5]],
+            'ultrasound probe': [[12,255,141]]
+        }
+
+        self.populate_lists()
+        if shuffle_list:
+            p = [x for x in range(len(self.img_path_list))]
+            random.shuffle(p)
+            self.img_path_list = [self.img_path_list[pi] for pi in p]
+            self.img_names = [self.img_names[pi] for pi in p]
+            self.label_path_list = [self.label_path_list[pi] for pi in p]
+            self.label_list = [self.label_list[pi] for pi in p]
+
+        #define data transform
+        self.data_transform = ENDOVIS_18_Transform(config=config)
+
+    def populate_lists(self):
+        #generate dataset for instrument 1 4 training
+        for dataset_num in os.listdir(self.root_path):
+            for seq in os.listdir(os.path.join(self.root_path, dataset_num)):
+                if seq not in self.seqs:
+                    continue
+                lbl_folder_path = os.path.join(self.root_path, dataset_num, seq, 'labels')
+                frames_folder_path = os.path.join(self.root_path, dataset_num, seq, 'left_frames')
+                for frame_no in os.listdir(frames_folder_path):
+                    if 'png' not in frame_no:
+                        continue
+                    for label_name in self.label_names:
+                        lbl_path = os.path.join(lbl_folder_path,frame_no)
+                        self.img_names.append(frame_no)
+                        self.img_path_list.append(os.path.join(frames_folder_path, frame_no))
+                        self.label_list.append(label_name)
+                        self.label_path_list.append(lbl_path)
+
+    def __len__(self):
+        return len(self.img_path_list)
+
+    def __getitem__(self, index):
+        img = torch.as_tensor(np.array(Image.open(self.img_path_list[index]).convert("RGB")))
+        try:
+            label = (np.array(Image.open(self.label_path_list[index]).convert("RGB")))
+        except:
+            label = np.zeros(img.shape[0], img.shape[1], 1)
+
+        if self.config['data']['volume_channel']==2:
+            img = img.permute(2,0,1)
+        
+        temp = np.zeros(label.shape).astype('uint8')[:,:,0]
+        selected_color_list = self.label_dict[self.label_list[index]]
+        for c in selected_color_list:
+            temp = temp | (np.all(np.where(label==c,1,0),axis=2))
+
+        mask = torch.Tensor(temp).unsqueeze(0)
+        label_of_interest = self.label_list[index]
+        img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+        #convert all grayscale pixels due to resizing back to 0, 1
+        mask = (mask>=0.5)+0
+        mask = mask[0]
+
+        return img, mask, self.img_path_list[index], label_of_interest
+
 
 class Endovis_Dataset(Dataset):
     def __init__(self, config, start=0, end=200, is_train=False, shuffle_list = True, apply_norm=True):
@@ -426,6 +516,15 @@ def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folde
             if x=='val':
                 dataset_dict[x] = Endovis_Dataset(config, start=180, end=330, shuffle_list=False, apply_norm=use_norm)
             dataset_sizes[x] = len(dataset_dict[x])
+
+    elif config['data']['name']=='ENDOVIS 18':
+        for x in ['train','val']:
+            if x=='train':
+                dataset_dict[x] = Endovis_18(config, start=0, end=18000, shuffle_list=True, is_train=True, apply_norm=use_norm)
+            if x=='val':
+                dataset_dict[x] = Endovis_18(config, start=0, end=33000, shuffle_list=False, apply_norm=use_norm, is_train=False)
+            dataset_sizes[x] = len(dataset_dict[x])
+
     else:
         for x in ['train','val']:
             if x=='train':

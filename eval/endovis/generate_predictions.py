@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument('--save_path', default='checkpoints/temp.pth',
                         help='pretrained model path')
 
-    parser.add_argument('--gt_path', default='checkpoints/temp.pth',
+    parser.add_argument('--gt_path', default='',
                         help='ground truth path')
 
     parser.add_argument('--device', default='cuda:0', help='device to train on')
@@ -62,7 +62,8 @@ def main():
     #make folder to save visualizations
     os.makedirs(os.path.join(args.save_path,"preds"),exist_ok=True)
     os.makedirs(os.path.join(args.save_path,"rescaled_preds"),exist_ok=True)
-    os.makedirs(os.path.join(args.save_path,"rescaled_gt"),exist_ok=True)
+    if args.gt_path:
+        os.makedirs(os.path.join(args.save_path,"rescaled_gt"),exist_ok=True)
 
     #load model
     model = Prompt_Adapted_SAM(config=model_config, label_text_dict=label_dict, device=args.device)
@@ -79,25 +80,28 @@ def main():
     #load data
     for img_name in sorted(os.listdir(args.data_folder)):
         img_path = (os.path.join(args.data_folder,img_name))
-        label_name = labels_of_interest[0].replace(' ','_')+'_labels'
-
-        #for test data, the labels are arranged differently so uncomment the line below 
-        gt_path = (os.path.join(args.gt_path,img_name))
-        # gt_path = (os.path.join(args.gt_path,label_name,img_name))
+        if args.gt_path:
+            label_name = labels_of_interest[0].replace(' ','_')+'_labels'
+            #for test data, the labels are arranged differently so uncomment the line below 
+            gt_path = (os.path.join(args.gt_path,img_name))
+            # gt_path = (os.path.join(args.gt_path,label_name,img_name))
 
         # print(img_path)
         img = torch.as_tensor(np.array(Image.open(img_path).convert("RGB")))
         img = img.permute(2,0,1)
+        C,H,W = img.shape
         #make a dummy mask of shape 1XHXW
-        label = torch.as_tensor(np.array(Image.open(gt_path))).unsqueeze(0)
+        if args.gt_path:
+            label = torch.as_tensor(np.array(Image.open(gt_path))).unsqueeze(0)
         
-        #for test data, the labels are arranged differently so uncomment th line below
-        label = (label==codes[0])+0
+            #for test data, the labels are arranged differently so uncomment th line below
+            label = (label==codes[0])+0
 
-        label = (label>0)+0
+            label = (label>0)+0
+        else:
+            label = torch.zeros((1,H,W))
         img, label = data_transform(img, label, is_train=False, apply_norm=True)
         label = (label>0.5)+0
-        label = label
 
         #get image embeddings
         img = img.unsqueeze(0).to(args.device)  #1XCXHXW
@@ -131,9 +135,10 @@ def main():
         plt.savefig(os.path.join(args.save_path,'rescaled_preds', img_name))
         plt.close()
 
-        plt.imshow((label[0]), cmap='gray')
-        plt.savefig(os.path.join(args.save_path,'rescaled_gt', img_name))
-        plt.close()
+        if args.gt_path:
+            plt.imshow((label[0]), cmap='gray')
+            plt.savefig(os.path.join(args.save_path,'rescaled_gt', img_name))
+            plt.close()
 
         # print("dice: ",dice_coef(label, (masks>0.5)+0))
         dices.append(dice_coef(label, (masks>0.5)+0))

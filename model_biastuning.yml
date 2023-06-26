@@ -1,6 +1,6 @@
 sam:
   img_size: 256
-  num_classes: 9
+  num_classes: 10
 
 img_type: 'image'
 arch: "Prompt Adapted SAM"
@@ -20,4 +20,4 @@ training:
   schedule_step: 2000
   schedule_step_factor: 0.5
   weight_decay: 1e-2
-  loss: 'dice+focal'
+  loss: 'focal'
