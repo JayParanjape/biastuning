@@ -145,6 +145,7 @@ def train_dl(model, dataloaders, dataset_sizes, criterion, optimizer, scheduler,
                 # track history if only in train
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs, text)
+                    print(outputs)
                     # print(outputs.shape)
                     # print(outputs)
                     loss=0

@@ -16,7 +16,7 @@ prompts:
 training:
   optimizer: 'adamw'
   lr: 1e-2
-  batch_size: 16
+  batch_size: 4
   num_epochs: 1000
   schedule_step: 200
   schedule_step_factor: 0.5

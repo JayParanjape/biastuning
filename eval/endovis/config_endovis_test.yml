@@ -13,6 +13,6 @@ data_transforms:
 data:
   name: ENDOVIS
   root_path: '/media/ubuntu/New Volume/jay/endovis17/instrument_1_4_testing/'
-  label_list: [1,2,3,4,5]
-  label_names: ['Left Prograsp Forceps', 'Maryland Bipolar Forceps', 'Right Prograsp Forceps', 'Left Large Needle Driver', 'Right Large Needle Driver']
+  label_list: [1,2,3,4,5,6,7,8,9]
+  label_names: ['Left Prograsp Forceps', 'Maryland Bipolar Forceps', 'Right Prograsp Forceps', 'Left Large Needle Driver', 'Right Large Needle Driver', 'Left Grasping Retractor', 'Right Grasping Retractor', 'Vessel Sealer', 'Monopolar Curved Scissors']
   volume_channel: 2

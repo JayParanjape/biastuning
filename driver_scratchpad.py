@@ -116,8 +116,8 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
             p.requires_grad = True
         if 'prompt' in name:
             p.requires_grad = True
-        # if 'decoder' in name:
-        #     p.requires_grad = True
+        if 'decoder' in name:
+            p.requires_grad = True
         #disable clip params for now
         if 'clip' in name.lower():
             p.requires_grad = False
