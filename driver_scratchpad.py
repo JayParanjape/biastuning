@@ -81,12 +81,18 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
         dataloader_dict = {}
         for x in ['train','val']:
             dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
+    elif data_config['data']['name']=='CHOLEC 8K':
+        dataset_dict, dataset_sizes, label_dict = get_data(data_config, tr_folder_start=0, tr_folder_end=18000, val_folder_start=0, val_folder_end=34444)
+        dataloader_dict = {}
+        for x in ['train','val']:
+            dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
+
 
     #load model
     #change the img size in model config according to data config
     model_config['sam']['img_size'] = data_config['data_transforms']['img_size']
     if model_config['arch']=='Prompt Adapted SAM':
-        model = Prompt_Adapted_SAM(model_config, label_dict, device)
+        model = Prompt_Adapted_SAM(model_config, label_dict, device, training_strategy=training_strategy)
 
     #load model weights
     if pretrained_path is not None:
@@ -156,6 +162,8 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
     elif data_config['data']['name']=='ENDOVIS':
         model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
     elif data_config['data']['name']=='ENDOVIS 18':
+        model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
+    elif data_config['data']['name']=='CHOLEC 8K':
         model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
 
 

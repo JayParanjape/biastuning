@@ -18,6 +18,7 @@ import time
 
 from data_transforms.endovis_transform import ENDOVIS_Transform
 from data_transforms.endovis_18_transform import ENDOVIS_18_Transform
+from data_transforms.cholec_8k_transform import Cholec_8k_Transform
 
 class Slice_Transforms:
     def __init__(self, config=None):
@@ -329,6 +330,101 @@ class IDRID_Dataset(Dataset):
 
         return img, label, label_segmask_no, label_text
 
+class Cholec_Ins_Dataset(Dataset):
+    def __init__(self, config, is_train=False, apply_norm=True, shuffle_list=True) -> None:
+        super().__init__()
+        self.root_path = config['data']['root_path']
+        self.img_names = []
+        self.img_path_list = []
+        self.label_path_list = []
+        self.label_list = []
+        self.is_train = is_train
+        self.label_names = config['data']['label_names']
+        self.config = config
+        self.apply_norm = apply_norm
+        self.data_transform = Cholec_8k_Transform(config=config)
+        self.label_dict = {
+            'Grasper':31,
+            'L Hook Electrocautery':32,
+            'Liver':21,
+            'Fat':12, 
+            'Gall Bladder':22,
+            'Abdominal Wall':11,
+            'Gastrointestinal Tract':13,
+            'Cystic Duct':25,
+            'Blood':24,
+            'Hepatic Vein':33,
+            'Liver Ligament':5,
+            'Connective Tissue':23
+        }
+        if is_train:
+            self.folder_list = ['video01','video09','video12','video17','video18','video20','video24','video25', 'video26']
+        else:
+            self.folder_list = ['video27','video28']
+        #populate the above lists
+        self.populate_lists()
+        if shuffle_list:
+            p = [x for x in range(len(self.img_path_list))]
+            random.shuffle(p)
+            self.img_path_list = [self.img_path_list[pi] for pi in p]
+            self.img_names = [self.img_names[pi] for pi in p]
+            self.label_path_list = [self.label_path_list[pi] for pi in p]
+            self.label_list = [self.label_list[pi] for pi in p]
+
+    def populate_lists(self):
+        for folder in (self.folder_list):
+            path1 = os.path.join(self.root_path, folder)
+            for sub in sorted(os.listdir(path1)):
+                path2 = os.path.join(path1, sub)
+                for im in sorted(os.listdir(path2)):
+                    if 'endo.png' not in im:
+                        continue
+                    im_path = os.path.join(path2, im)
+                    im_name = im[:-4]
+                    label_img_path = os.path.join(path2, im_name+'_watershed_mask.png')
+                    for label_name in self.label_names:
+                        self.img_names.append(im_name)
+                        self.img_path_list.append(im_path)
+                        self.label_path_list.append(label_img_path)
+                        self.label_list.append(label_name)
+    
+    def __len__(self):
+        return len(self.img_path_list)
+
+
+    def __getitem__(self, index):
+        img = torch.as_tensor(np.array(Image.open(self.img_path_list[index]).convert("RGB")))
+        if self.config['data']['volume_channel']==2:
+            img = img.permute(2,0,1)
+
+        label_of_interest = self.label_list[index]
+        gold = np.array(Image.open(self.label_path_list[index]))
+
+        if len(gold.shape)==3:
+            gold = gold[:,:,0]
+        if gold.max()<2:
+            gold = (gold*255).astype(int)
+
+        # plt.imshow(gold)
+        # plt.show()
+        mask = (gold==self.label_dict[label_of_interest])
+        
+        mask = torch.Tensor(mask+0)
+        mask = torch.Tensor(mask).unsqueeze(0)
+        
+
+        img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+
+        # plt.imshow(mask, cmap='gray')
+        # plt.show()
+        #convert all grayscale pixels due to resizing back to 0, 1
+        mask = (mask>=0.5)+0
+        mask = mask[0]
+        # plt.imshow(mask, cmap='gray')
+        # plt.show()
+        return img, mask, self.img_path_list[index], label_of_interest
+
+
 class Endovis_18(Dataset):
     def __init__(self, config, start=0, end=200, is_train=False, shuffle_list = True, apply_norm=True):
         super().__init__()
@@ -523,6 +619,14 @@ def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folde
                 dataset_dict[x] = Endovis_18(config, start=0, end=18000, shuffle_list=True, is_train=True, apply_norm=use_norm)
             if x=='val':
                 dataset_dict[x] = Endovis_18(config, start=0, end=33000, shuffle_list=False, apply_norm=use_norm, is_train=False)
+            dataset_sizes[x] = len(dataset_dict[x])
+
+    elif config['data']['name']=='CHOLEC 8K':
+        for x in ['train','val']:
+            if x=='train':
+                dataset_dict[x] = Cholec_Ins_Dataset(config, shuffle_list=True, is_train=True, apply_norm=use_norm)
+            if x=='val':
+                dataset_dict[x] = Cholec_Ins_Dataset(config, shuffle_list=False, apply_norm=use_norm, is_train=False)
             dataset_sizes[x] = len(dataset_dict[x])
 
     else:

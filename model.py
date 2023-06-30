@@ -18,7 +18,8 @@ class Prompt_Adapted_SAM(nn.Module):
         self, 
         config, 
         label_text_dict = {},
-        device = 'cuda:0'
+        device = 'cuda:0',
+        training_strategy='biastuning'
         ):
         super().__init__()
         self.device = device
@@ -28,6 +29,7 @@ class Prompt_Adapted_SAM(nn.Module):
         self.prompt_config = config['prompts']
         self.im_type = config['img_type']
         self.use_fdn = config['use_fdn']
+        self.training_strategy = training_strategy
 
         #define hyperparameters, can be taken to a config later
         prompt_embed_dim=256
@@ -67,13 +69,14 @@ class Prompt_Adapted_SAM(nn.Module):
                 nn.ReLU(),
                 nn.BatchNorm1d(256)
             )
-            self.text_prompt_dropout = nn.Dropout(self.prompt_config['DROPOUT'])
-            self.text_prompt_embeddings = nn.Parameter(torch.zeros(self.num_classes+1, prompt_embed_dim))
-            nn.init.xavier_uniform_(self.text_prompt_embeddings.data)
+            if self.training_strategy=='prompttuning':
+                self.text_prompt_dropout = nn.Dropout(self.prompt_config['DROPOUT'])
+                self.text_prompt_embeddings = nn.Parameter(torch.zeros(self.num_classes+1, prompt_embed_dim))
+                nn.init.xavier_uniform_(self.text_prompt_embeddings.data)
 
-            self.label_dict = self.label_dict.update({
-                                    'other': self.num_classes
-                                })
+                self.label_dict = self.label_dict.update({
+                                        'other': self.num_classes
+                                    })
 
         #define feature denormalization module if it is to be used
         if self.use_fdn:
@@ -81,6 +84,7 @@ class Prompt_Adapted_SAM(nn.Module):
 
         #initialize sam with pretrained weights
         sam_ckpt = '/home/ubuntu/Desktop/Domain_Adaptation_Project/repos/segment-anything/checkpoints/sam_vit_b_01ec64.pth'
+        # sam_ckpt = '/data/jparanj1/sam_vit_b_01ec64.pth'
         sam_state_dict = torch.load(sam_ckpt)
         for k in list(sam_state_dict.keys()):
             if self.img_size!=1024:
@@ -107,13 +111,14 @@ class Prompt_Adapted_SAM(nn.Module):
         x_text = list(x_text)
         
         if self.prompt_config['USE_TEXT_PROMPT']:
-            prompt_text = []
-            for t in x_text:
-                try:
-                    prompt_text.append(self.text_prompt_embeddings[self.label_dict[t]])
-                except:
-                    prompt_text.append(self.text_prompt_embeddings[-1])
-            prompt_text = torch.stack(prompt_text)
+            if self.training_strategy=='prompttuning':
+                prompt_text = []
+                for t in x_text:
+                    try:
+                        prompt_text.append(self.text_prompt_embeddings[self.label_dict[t]])
+                    except:
+                        prompt_text.append(self.text_prompt_embeddings[-1])
+                prompt_text = torch.stack(prompt_text)
         
         image_embeddings = self.sam_encoder(x_img)
         if self.use_fdn:
@@ -142,7 +147,7 @@ class Prompt_Adapted_SAM(nn.Module):
         except:
             print(text_features.shape)
             1/0
-        if self.prompt_config['USE_TEXT_PROMPT']:
+        if self.prompt_config['USE_TEXT_PROMPT'] and self.training_strategy=='prompttuning':
             text_features_affine = text_features_affine + prompt_text
         text_features_affine = text_features_affine.unsqueeze(1)
         sparse_embeddings = sparse_embeddings.to(self.device).repeat(B,1,1)
@@ -180,13 +185,14 @@ class Prompt_Adapted_SAM(nn.Module):
         with torch.no_grad():
             x_text = list(x_text)
             if self.prompt_config['USE_TEXT_PROMPT']:
-                prompt_text = []
-                for t in x_text:
-                    try:
-                        prompt_text.append(self.text_prompt_embeddings[self.label_dict[t]])
-                    except:
-                        prompt_text.append(self.text_prompt_embeddings[-1])
-                prompt_text = torch.stack(prompt_text)
+                if self.training_strategy=='prompttuning':
+                    prompt_text = []
+                    for t in x_text:
+                        try:
+                            prompt_text.append(self.text_prompt_embeddings[self.label_dict[t]])
+                        except:
+                            prompt_text.append(self.text_prompt_embeddings[-1])
+                    prompt_text = torch.stack(prompt_text)
 
             text_inputs = (clip.tokenize(x_text)).to(self.device)
             text_features = self.clip_model.encode_text(text_inputs)
@@ -202,7 +208,7 @@ class Prompt_Adapted_SAM(nn.Module):
             else:
                 text_features_affine = text_features[:,:256]
 
-            if self.prompt_config['USE_TEXT_PROMPT']:
+            if self.prompt_config['USE_TEXT_PROMPT'] and self.training_strategy=='prompttuning':
                 text_features_affine = text_features_affine + prompt_text
             
             text_features_affine = text_features_affine.unsqueeze(1)
