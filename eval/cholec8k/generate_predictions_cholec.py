@@ -9,7 +9,7 @@ from data_utils import *
 from model import *
 from utils import *
 
-label_names = ['Grasper', 'L Hook Electrocautery', 'Liver', 'Fat', 'Gall Bladder','Abdominal Wall','Gastrointestinal Tract','Cystic Duct']
+label_names = ['Grasper', 'L Hook Electrocautery', 'Liver', 'Fat', 'Gall Bladder','Abdominal Wall','Gastrointestinal Tract','Cystic Duct','Blood','Hepatic Vein', 'Liver Ligament', 'Connective Tissue']
 # visualize_li = [[1,0,0],[0,1,0],[1,0,0], [0,0,1], [0,0,1]]
 label_dict = {}
 # visualize_dict = {}
@@ -58,7 +58,7 @@ def main():
     codes = args.codes.split(',')
     codes = [int(c) for c in codes]
 
-    label_dict = {
+    label_dict2 = {
             'Grasper':31,
             'L Hook Electrocautery':32,
             'Liver':21,
@@ -81,8 +81,8 @@ def main():
         os.makedirs(os.path.join(args.save_path,"rescaled_gt"),exist_ok=True)
 
     #load model
-    model = Prompt_Adapted_SAM(config=model_config, label_text_dict=label_dict, device=args.device)
-    model.load_state_dict(torch.load(args.pretrained_path, map_location=args.device))
+    model = Prompt_Adapted_SAM(config=model_config, label_text_dict=label_dict, device=args.device,training_strategy='biastuning')
+    model.load_state_dict(torch.load(args.pretrained_path, map_location=args.device),strict=False)
     model = model.to(args.device)
     model = model.eval()
 
@@ -117,7 +117,7 @@ def main():
 
             # plt.imshow(gold)
             # plt.show()
-            mask = (gold==label_dict[label_of_interest])
+            mask = (gold==label_dict2[label_of_interest])
             
             mask = torch.Tensor(mask+0)
             mask = torch.Tensor(mask).unsqueeze(0)

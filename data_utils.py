@@ -555,8 +555,8 @@ class Endovis_Dataset(Dataset):
                         lbl_path = os.path.join(lbl_folder_path, label_name.replace(' ','_')+'_labels',frame_no)
                         
                         #important decision here - include all black labels or not
-                        if not os.path.exists(lbl_path):
-                            continue
+                        # if not os.path.exists(lbl_path):
+                        #     continue
                         self.img_names.append(frame_no)
                         self.img_path_list.append(os.path.join(frames_folder_path, frame_no))
                         self.label_list.append(label_name)

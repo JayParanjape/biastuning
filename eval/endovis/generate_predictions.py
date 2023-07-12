@@ -76,9 +76,12 @@ def main():
 
     #dice
     dices = []
+    ious = []
 
     #load data
-    for img_name in sorted(os.listdir(args.data_folder)):
+    for i,img_name in enumerate(sorted(os.listdir(args.data_folder))):
+        if i%5!=0:
+            continue
         img_path = (os.path.join(args.data_folder,img_name))
         if args.gt_path:
             label_name = labels_of_interest[0].replace(' ','_')+'_labels'
@@ -142,8 +145,10 @@ def main():
 
         # print("dice: ",dice_coef(label, (masks>0.5)+0))
         dices.append(dice_coef(label, (masks>0.5)+0))
+        ious.append(iou_coef(label, (masks>0.5)+0))
         # break
-    print(torch.mean(torch.Tensor(dices)))
+    print("Dice: ",torch.mean(torch.Tensor(dices)))
+    print("IoU: ",torch.mean(torch.Tensor(ious)))
 
 if __name__ == '__main__':
     main()

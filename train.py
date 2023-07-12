@@ -150,7 +150,10 @@ def train_dl(model, dataloaders, dataset_sizes, criterion, optimizer, scheduler,
                     loss=0
                     seg_loss = 0
                     for c in criterion:
-                        seg_loss += c(outputs, labels.float())
+                        try:
+                            seg_loss += c(outputs, text, labels.float())
+                        except:
+                            seg_loss += c(outputs, labels.float())
                     loss += seg_loss
                     
                     # backward + optimize only if in training phase

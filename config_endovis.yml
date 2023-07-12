@@ -5,9 +5,9 @@ data_transforms:
   use_random_crop: False
   use_rotation: True
   rotation_angle: 10
-  use_saturation: False
+  use_saturation: True
   saturation: 2
-  use_brightness: False
+  use_brightness: True
   brightness: 2
   use_horizontal_flip: False
 data:

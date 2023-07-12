@@ -79,7 +79,7 @@ def main():
         os.makedirs(os.path.join(args.save_path,"rescaled_gt"),exist_ok=True)
 
     #load model
-    model = Prompt_Adapted_SAM(config=model_config, label_text_dict=label_dict, device=args.device)
+    model = Prompt_Adapted_SAM(config=model_config, label_text_dict=label_dict, device=args.device, training_strategy='biastuning')
     model.load_state_dict(torch.load(args.pretrained_path, map_location=args.device))
     model = model.to(args.device)
     model = model.eval()
@@ -93,7 +93,7 @@ def main():
 
     #load data
     for i,img_name in enumerate(sorted(os.listdir(args.data_folder))):
-        if i%20!=0:
+        if i%5!=0:
             continue
         img_path = (os.path.join(args.data_folder,img_name))
         if args.gt_path:
@@ -162,6 +162,7 @@ def main():
         ious.append(iou_coef(mask, (masks>=0.5)+0))
         # break
     print(torch.mean(torch.Tensor(dices)))
+    print(torch.mean(torch.Tensor(ious)))
 
 if __name__ == '__main__':
     main()

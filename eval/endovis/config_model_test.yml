@@ -6,7 +6,7 @@ img_type: 'image'
 arch: "Prompt Adapted SAM"
 use_fdn: False
 prompts:
-  USE_TEXT_PROMPT: True
+  USE_TEXT_PROMPT: False
   USE_IMAGE_PROMPT: False
   LOCATION: 'prepend'
   DROPOUT: 0

@@ -36,6 +36,7 @@ class Prompt_Adapted_SAM(nn.Module):
         image_embedding_size=16
         mask_in_chans=16
 
+        print(self.prompt_config)
         #define pretrained clip and sam models
         self.sam_encoder = ImageEncoderViT(img_size=self.img_size,prompt_config=self.prompt_config)
         self.clip_model, _  = clip.load("ViT-B/32", device=device)
