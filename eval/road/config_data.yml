@@ -1,7 +1,7 @@
 data_transforms:
   a_min: 0
   a_max: 255
-  img_size: 256
+  img_size: 512
   use_random_crop: False
   use_rotation: False
   rotation_angle: 10
@@ -13,8 +13,7 @@ data_transforms:
 data:
   name: ENDOVIS
   root_path: '/media/ubuntu/New Volume/jay/endovis17/instrument_1_4_testing/'
-  label_list: [1,2,3,4,5,6,7,8,9]
-  label_names: ['Left Prograsp Forceps', 'Maryland Bipolar Forceps', 'Right Prograsp Forceps', 'Left Large Needle Driver', 'Right Large Needle Driver', 'Left Grasping Retractor', 'Right Grasping Retractor', 'Vessel Sealer', 'Monopolar Curved Scissors']
+  label_list: [1,2]
+  label_names: ['road','background']
   volume_channel: 2
-
 

@@ -9,10 +9,10 @@ from data_utils import *
 from model import *
 from utils import *
 
-label_names = ['Left Prograsp Forceps', 'Maryland Bipolar Forceps', 'Right Prograsp Forceps', 'Left Large Needle Driver', 'Right Large Needle Driver', 'Left Grasping Retractor', 'Right Grasping Retractor', 'Vessel Sealer', 'Monopolar Curved Scissors']
-visualize_li = [[1,0,0],[0,1,0],[1,0,0], [0,0,1], [0,0,1]]
+label_names = ['Liver', 'Kidney', 'Pancreas', 'Vessels', 'Adrenals', 'Gall Bladder', 'Bones', 'Spleen']
+# visualize_li = [[1,0,0],[0,1,0],[1,0,0], [0,0,1], [0,0,1]]
 label_dict = {}
-visualize_dict = {}
+# visualize_dict = {}
 for i,ln in enumerate(label_names):
         label_dict[ln] = i
         # visualize_dict[ln] = visualize_li[i]
@@ -58,6 +58,17 @@ def main():
     codes = args.codes.split(',')
     codes = [int(c) for c in codes]
 
+    label_dict = {
+            'Liver': [[100,0,100]],
+            'Kidney': [[255,255,0]],
+            'Pancreas': [[0,0,255]],
+            'Vessels': [[255,0,0]],
+            'Adrenals': [[0,255,255]],
+            'Gall Bladder': [[0,255,0]],
+            'Bones': [[255,255,255]],
+            'Spleen': [[255,0,255]]
+        }
+
 
     #make folder to save visualizations
     os.makedirs(os.path.join(args.save_path,"preds"),exist_ok=True)
@@ -66,28 +77,29 @@ def main():
         os.makedirs(os.path.join(args.save_path,"rescaled_gt"),exist_ok=True)
 
     #load model
-    model = Prompt_Adapted_SAM(config=model_config, label_text_dict=label_dict, device=args.device)
+    model = Prompt_Adapted_SAM(config=model_config, label_text_dict=label_dict, device=args.device, training_strategy='biastuning')
     model.load_state_dict(torch.load(args.pretrained_path, map_location=args.device))
     model = model.to(args.device)
     model = model.eval()
 
     #load data transform
-    data_transform = ENDOVIS_Transform(config=data_config)
+    data_transform = Ultrasound_Transform(config=data_config)
 
     #dice
     dices = []
-    ious = []
+    ious=[]
 
     #load data
     for i,img_name in enumerate(sorted(os.listdir(args.data_folder))):
-        if i%5!=0:
-            continue
+        # if i%5!=0:
+        #     continue
         img_path = (os.path.join(args.data_folder,img_name))
         if args.gt_path:
-            label_name = labels_of_interest[0].replace(' ','_')+'_labels'
-            #for test data, the labels are arranged differently so uncomment the line below 
             gt_path = (os.path.join(args.gt_path,img_name))
-            # gt_path = (os.path.join(args.gt_path,label_name,img_name))
+            if not os.path.exists(gt_path):
+                gt_path = (os.path.join(args.gt_path,img_name[:-4]+'.png'))
+                if not os.path.exists(gt_path):
+                    continue
 
         # print(img_path)
         img = torch.as_tensor(np.array(Image.open(img_path).convert("RGB")))
@@ -95,16 +107,20 @@ def main():
         C,H,W = img.shape
         #make a dummy mask of shape 1XHXW
         if args.gt_path:
-            label = torch.as_tensor(np.array(Image.open(gt_path))).unsqueeze(0)
-        
-            #for test data, the labels are arranged differently so uncomment th line below
-            label = (label==codes[0])+0
+            label = np.array(Image.open(gt_path).convert("RGB"))
+            temp = np.zeros((H,W)).astype('uint8')
+            selected_color_list = label_dict[args.labels_of_interest]
+            for c in selected_color_list:
+                temp = temp | (np.all(np.where(label==c,1,0),axis=2))
 
-            label = (label>0)+0
+            # plt.imshow(gold)
+            # plt.show()
+            mask = torch.Tensor(temp).unsqueeze(0)
+
         else:
-            label = torch.zeros((1,H,W))
-        img, label = data_transform(img, label, is_train=False, apply_norm=True)
-        label = (label>0.5)+0
+            mask = torch.zeros((1,H,W))
+        img, mask = data_transform(img, mask, is_train=False, apply_norm=True)
+        mask = (mask>=0.5)+0
 
         #get image embeddings
         img = img.unsqueeze(0).to(args.device)  #1XCXHXW
@@ -134,35 +150,26 @@ def main():
         # plt.imshow(label[0], cmap='gray')
         # plt.show()
 
-        plt.imshow((masks[0]>0.5), cmap='gray')
+        plt.imshow((masks[0]>=0.5), cmap='gray')
         plt.savefig(os.path.join(args.save_path,'rescaled_preds', img_name))
         plt.close()
 
         if args.gt_path:
-            plt.imshow((label[0]), cmap='gray')
+            plt.imshow((mask[0]), cmap='gray')
             plt.savefig(os.path.join(args.save_path,'rescaled_gt', img_name))
             plt.close()
 
         # print("dice: ",dice_coef(label, (masks>0.5)+0))
-        dices.append(dice_coef(label, (masks>0.5)+0))
-        ious.append(iou_coef(label, (masks>0.5)+0))
+        dices.append(dice_coef(mask, (masks>=0.5)+0))
+        ious.append(iou_coef(mask, (masks>=0.5)+0))
         # break
-    print("Dice: ",torch.mean(torch.Tensor(dices)))
-    print("IoU: ",torch.mean(torch.Tensor(ious)))
+    print(torch.mean(torch.Tensor(dices)))
+    print(torch.mean(torch.Tensor(ious)))
 
 if __name__ == '__main__':
     main()
 
 
-# {
-# 	"Bipolar Forceps": 1,
-# 	"Prograsp Forceps": 2,
-# 	"Large Needle Driver": 3,
-# 	"Vessel Sealer": 4,
-# 	"Grasping Retractor": 5,
-#   "Monopolar Curved Scissors": 6,
-#   "Other": 7
-# }
-
+        
 
 

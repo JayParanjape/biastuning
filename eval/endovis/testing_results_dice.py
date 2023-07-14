@@ -7,10 +7,10 @@ import torch
 sys.path.append("/home/ubuntu/Desktop/Domain_Adaptation_Project/repos/biastuning/")
 from utils import *
 
-test_path = "/media/ubuntu/New Volume/jay/endovis17/testing_results_rsz_manyaug_blanklabeltraining"
+test_path = "/media/ubuntu/New Volume/jay/endovis17/ev17_textaffine_decoder_biastuning_blanklabels_focal"
 
 #when not differentiating between the forceps, add mbp to the first tuple
-instruments = [('lgr','rgr'),('llnd','rlnd'),('lpf','rpf','mbp')]
+instruments = [('lgr','rgr'),('llnd','rlnd'),('lpf','rpf')]
 for dataset in sorted(os.listdir(test_path)):
     for instrument in instruments:
         dices = []
@@ -55,3 +55,4 @@ for dataset in sorted(os.listdir(test_path)):
         #     1/0
 
         print(f"Dataset: {dataset}, instrument: {instrument}, dice: {torch.mean(torch.Tensor(dices))}, iou: {torch.mean(torch.Tensor(ious))}")
+    print('\n')

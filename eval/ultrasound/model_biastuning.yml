@@ -14,10 +14,10 @@ prompts:
 
 training:
   optimizer: 'adamw'
-  lr: 4e-4
-  batch_size: 8
+  lr: 1e-4
+  batch_size: 64
   num_epochs: 1000
-  schedule_step: 2000
+  schedule_step: 20
   schedule_step_factor: 0.5
   weight_decay: 1e-2
-  loss: 'weighted CE+focal'
+  loss: 'focal'

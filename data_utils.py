@@ -19,6 +19,7 @@ import time
 from data_transforms.endovis_transform import ENDOVIS_Transform
 from data_transforms.endovis_18_transform import ENDOVIS_18_Transform
 from data_transforms.cholec_8k_transform import Cholec_8k_Transform
+from data_transforms.ultrasound_transform import Ultrasound_Transform
 
 class Slice_Transforms:
     def __init__(self, config=None):
@@ -330,6 +331,85 @@ class IDRID_Dataset(Dataset):
 
         return img, label, label_segmask_no, label_text
 
+class Ultrasound_Dataset(Dataset):
+    def __init__(self, config, is_train=False, apply_norm=True, shuffle_list=True):
+        super().__init__()
+        self.root_path = config['data']['root_path']
+        self.img_names = []
+        self.img_path_list = []
+        self.label_path_list = []
+        self.label_list = []
+        self.is_train = is_train
+        self.label_names = config['data']['label_names']
+        self.config = config
+        self.apply_norm = apply_norm
+        self.data_transform = Ultrasound_Transform(config=config)
+        self.label_dict = {
+            'Liver': [[100,0,100]],
+            'Kidney': [[255,255,0]],
+            'Pancreas': [[0,0,255]],
+            'Vessels': [[255,0,0]],
+            'Adrenals': [[0,255,255]],
+            'Gall Bladder': [[0,255,0]],
+            'Bones': [[255,255,255]],
+            'Spleen': [[255,0,255]]
+        }
+        if self.is_train:
+            self.ctlist = ['ct1','ct2','ct3','ct4','ct5','ct6','ct7','ct8','ct9','ct10','ct11','ct12']
+        else:
+            self.ctlist = ['ct13','ct14','ct15']
+
+        self.populate_lists()
+        if shuffle_list:
+            p = [x for x in range(len(self.img_path_list))]
+            random.shuffle(p)
+            self.img_path_list = [self.img_path_list[pi] for pi in p]
+            self.img_names = [self.img_names[pi] for pi in p]
+            self.label_path_list = [self.label_path_list[pi] for pi in p]
+            self.label_list = [self.label_list[pi] for pi in p]
+
+    def populate_lists(self):
+        imgs_path = os.path.join(self.root_path, 'images/train')
+        labels_path = os.path.join(self.root_path, 'annotations/train')
+        for img in os.listdir(imgs_path):
+            ct = img[:img.find('-')]
+            if ct not in self.ctlist:
+                continue
+            for label_name in self.label_names:
+                self.img_names.append(img)
+                self.img_path_list.append(os.path.join(imgs_path,img))
+                self.label_path_list.append(os.path.join(labels_path, img))
+                self.label_list.append(label_name)
+
+    def __len__(self):
+        return len(self.img_path_list)
+
+    def __getitem__(self, index):
+        img = torch.as_tensor(np.array(Image.open(self.img_path_list[index]).convert("RGB")))
+        try:
+            label = (np.array(Image.open(self.label_path_list[index]).convert("RGB")))
+        except:
+            label = np.zeros(img.shape[0], img.shape[1], 1)
+
+        if self.config['data']['volume_channel']==2:
+            img = img.permute(2,0,1)
+        
+        temp = np.zeros(label.shape).astype('uint8')[:,:,0]
+        selected_color_list = self.label_dict[self.label_list[index]]
+        for c in selected_color_list:
+            temp = temp | (np.all(np.where(label==c,1,0),axis=2))
+
+        mask = torch.Tensor(temp).unsqueeze(0)
+        label_of_interest = self.label_list[index]
+        img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+        #convert all grayscale pixels due to resizing back to 0, 1
+        mask = (mask>=0.5)+0
+        mask = mask[0]
+
+        return img, mask, self.img_path_list[index], label_of_interest    
+                
+
+
 class Cholec_Ins_Dataset(Dataset):
     def __init__(self, config, is_train=False, apply_norm=True, shuffle_list=True) -> None:
         super().__init__()
@@ -627,6 +707,14 @@ def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folde
                 dataset_dict[x] = Cholec_Ins_Dataset(config, shuffle_list=True, is_train=True, apply_norm=use_norm)
             if x=='val':
                 dataset_dict[x] = Cholec_Ins_Dataset(config, shuffle_list=False, apply_norm=use_norm, is_train=False)
+            dataset_sizes[x] = len(dataset_dict[x])
+    
+    elif config['data']['name']=='ULTRASOUND':
+        for x in ['train','val']:
+            if x=='train':
+                dataset_dict[x] = Ultrasound_Dataset(config, shuffle_list=True, is_train=True, apply_norm=use_norm)
+            if x=='val':
+                dataset_dict[x] = Ultrasound_Dataset(config, shuffle_list=False, apply_norm=use_norm, is_train=False)
             dataset_sizes[x] = len(dataset_dict[x])
 
     else:

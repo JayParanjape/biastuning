@@ -1,0 +1,18 @@
+data_transforms:
+  a_min: 0
+  a_max: 255
+  img_size: 256
+  use_random_crop: False
+  use_rotation: True
+  rotation_angle: 10
+  use_saturation: False
+  saturation: 2
+  use_brightness: True
+  brightness: 2
+  use_horizontal_flip: False
+data:
+  name: ULTRASOUND
+  root_path: '/media/ubuntu/New Volume/jay/ultrasound/abdominal_US/abdominal_US/AUS'
+  label_list: [1,2,3,4,5,6,7,8]
+  label_names: ['Liver', 'Kidney', 'Pancreas', 'Vessels', 'Adrenals', 'Gall Bladder', 'Bones', 'Spleen']
+  volume_channel: 2
