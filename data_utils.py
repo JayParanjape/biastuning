@@ -332,7 +332,7 @@ class IDRID_Dataset(Dataset):
         return img, label, label_segmask_no, label_text
 
 class Ultrasound_Dataset(Dataset):
-    def __init__(self, config, is_train=False, apply_norm=True, shuffle_list=True):
+    def __init__(self, config, is_train=False, apply_norm=True, shuffle_list=True, no_text_mode=False):
         super().__init__()
         self.root_path = config['data']['root_path']
         self.img_names = []
@@ -343,6 +343,7 @@ class Ultrasound_Dataset(Dataset):
         self.label_names = config['data']['label_names']
         self.config = config
         self.apply_norm = apply_norm
+        self.no_text_mode = no_text_mode
         self.data_transform = Ultrasound_Transform(config=config)
         self.label_dict = {
             'Liver': [[100,0,100]],
@@ -354,6 +355,7 @@ class Ultrasound_Dataset(Dataset):
             'Bones': [[255,255,255]],
             'Spleen': [[255,0,255]]
         }
+        self.num_classes = len(list(self.label_dict.keys()))
         if self.is_train:
             self.ctlist = ['ct1','ct2','ct3','ct4','ct5','ct6','ct7','ct8','ct9','ct10','ct11','ct12']
         else:
@@ -375,11 +377,17 @@ class Ultrasound_Dataset(Dataset):
             ct = img[:img.find('-')]
             if ct not in self.ctlist:
                 continue
-            for label_name in self.label_names:
+            if self.no_text_mode:
                 self.img_names.append(img)
                 self.img_path_list.append(os.path.join(imgs_path,img))
                 self.label_path_list.append(os.path.join(labels_path, img))
-                self.label_list.append(label_name)
+                self.label_list.append('')
+            else:
+                for label_name in self.label_names:
+                    self.img_names.append(img)
+                    self.img_path_list.append(os.path.join(imgs_path,img))
+                    self.label_path_list.append(os.path.join(labels_path, img))
+                    self.label_list.append(label_name)
 
     def __len__(self):
         return len(self.img_path_list)
@@ -394,24 +402,37 @@ class Ultrasound_Dataset(Dataset):
         if self.config['data']['volume_channel']==2:
             img = img.permute(2,0,1)
         
-        temp = np.zeros(label.shape).astype('uint8')[:,:,0]
-        selected_color_list = self.label_dict[self.label_list[index]]
-        for c in selected_color_list:
-            temp = temp | (np.all(np.where(label==c,1,0),axis=2))
+        if self.no_text_mode:
+            mask = np.zeros((self.num_classes,img.shape[1], img.shape[2]))
+            for i,c in enumerate(list(self.label_dict.keys())):
+                temp = np.zeros(label.shape).astype('uint8')[:,:,0]
+                selected_color_list = self.label_dict[c]
+                for c in selected_color_list:
+                    temp = temp | (np.all(np.where(label==c,1,0),axis=2))
+                mask[i,:,:] = temp
+            mask = torch.Tensor(mask)
+            img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+            mask = (mask>=0.5)+0
+            label_of_interest = ''
+        else:
+            temp = np.zeros(label.shape).astype('uint8')[:,:,0]
+            selected_color_list = self.label_dict[self.label_list[index]]
+            for c in selected_color_list:
+                temp = temp | (np.all(np.where(label==c,1,0),axis=2))
 
-        mask = torch.Tensor(temp).unsqueeze(0)
-        label_of_interest = self.label_list[index]
-        img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
-        #convert all grayscale pixels due to resizing back to 0, 1
-        mask = (mask>=0.5)+0
-        mask = mask[0]
+            mask = torch.Tensor(temp).unsqueeze(0)
+            label_of_interest = self.label_list[index]
+            img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+            #convert all grayscale pixels due to resizing back to 0, 1
+            mask = (mask>=0.5)+0
+            mask = mask[0]
 
         return img, mask, self.img_path_list[index], label_of_interest    
                 
 
 
 class Cholec_Ins_Dataset(Dataset):
-    def __init__(self, config, is_train=False, apply_norm=True, shuffle_list=True) -> None:
+    def __init__(self, config, is_train=False, apply_norm=True, shuffle_list=True, no_text_mode=False) -> None:
         super().__init__()
         self.root_path = config['data']['root_path']
         self.img_names = []
@@ -421,6 +442,7 @@ class Cholec_Ins_Dataset(Dataset):
         self.is_train = is_train
         self.label_names = config['data']['label_names']
         self.config = config
+        self.no_text_mode = no_text_mode
         self.apply_norm = apply_norm
         self.data_transform = Cholec_8k_Transform(config=config)
         self.label_dict = {
@@ -437,6 +459,8 @@ class Cholec_Ins_Dataset(Dataset):
             'Liver Ligament':5,
             'Connective Tissue':23
         }
+        self.num_classes = len(list(self.label_dict.keys()))
+
         if is_train:
             self.folder_list = ['video01','video09','video12','video17','video18','video20','video24','video25', 'video26']
         else:
@@ -462,11 +486,17 @@ class Cholec_Ins_Dataset(Dataset):
                     im_path = os.path.join(path2, im)
                     im_name = im[:-4]
                     label_img_path = os.path.join(path2, im_name+'_watershed_mask.png')
-                    for label_name in self.label_names:
+                    if self.no_text_mode:
                         self.img_names.append(im_name)
-                        self.img_path_list.append(im_path)
-                        self.label_path_list.append(label_img_path)
-                        self.label_list.append(label_name)
+                        self.img_path_list.append(os.path.join(im_path))
+                        self.label_path_list.append(os.path.join(label_img_path))
+                        self.label_list.append('')
+                    else:
+                        for label_name in self.label_names:
+                            self.img_names.append(im_name)
+                            self.img_path_list.append(im_path)
+                            self.label_path_list.append(label_img_path)
+                            self.label_list.append(label_name)
     
     def __len__(self):
         return len(self.img_path_list)
@@ -485,28 +515,38 @@ class Cholec_Ins_Dataset(Dataset):
         if gold.max()<2:
             gold = (gold*255).astype(int)
 
-        # plt.imshow(gold)
-        # plt.show()
-        mask = (gold==self.label_dict[label_of_interest])
-        
-        mask = torch.Tensor(mask+0)
-        mask = torch.Tensor(mask).unsqueeze(0)
-        
 
-        img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+        if self.no_text_mode:
+            mask = np.zeros((self.num_classes,img.shape[1], img.shape[2]))
+            for i,c in enumerate(list(self.label_dict.keys())):
+                mask[i,:,:] = (gold==self.label_dict[c])
+            mask = torch.Tensor(mask)
+            img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+            mask = (mask>=0.5)+0
+            label_of_interest = ''
+        else:
+            # plt.imshow(gold)
+            # plt.show()
+            mask = (gold==self.label_dict[label_of_interest])
+            
+            mask = torch.Tensor(mask+0)
+            mask = torch.Tensor(mask).unsqueeze(0)
+            
 
-        # plt.imshow(mask, cmap='gray')
-        # plt.show()
-        #convert all grayscale pixels due to resizing back to 0, 1
-        mask = (mask>=0.5)+0
-        mask = mask[0]
-        # plt.imshow(mask, cmap='gray')
-        # plt.show()
+            img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+
+            # plt.imshow(mask, cmap='gray')
+            # plt.show()
+            #convert all grayscale pixels due to resizing back to 0, 1
+            mask = (mask>=0.5)+0
+            mask = mask[0]
+            # plt.imshow(mask, cmap='gray')
+            # plt.show()
         return img, mask, self.img_path_list[index], label_of_interest
 
 
 class Endovis_18(Dataset):
-    def __init__(self, config, start=0, end=200, is_train=False, shuffle_list = True, apply_norm=True):
+    def __init__(self, config, start=0, end=200, is_train=False, shuffle_list = True, apply_norm=True, no_text_mode=False):
         super().__init__()
         self.root_path = config['data']['root_path']
         self.img_names = []
@@ -518,6 +558,7 @@ class Endovis_18(Dataset):
         self.end = end
         self.label_names = config['data']['label_names']
         self.config = config
+        self.no_text_mode = no_text_mode
         self.apply_norm = apply_norm
         if self.is_train:
             self.seqs = ['seq_1', 'seq_2', 'seq_3', 'seq_5', 'seq_6', 'seq_9', 'seq_10', 'seq_11', 'seq_13', 'seq_14', 'seq_15']
@@ -536,6 +577,8 @@ class Endovis_18(Dataset):
             'small intestine': [[124,155,5]],
             'ultrasound probe': [[12,255,141]]
         }
+        self.num_classes = len(list(self.label_dict.keys()))
+
 
         self.populate_lists()
         if shuffle_list:
@@ -560,12 +603,18 @@ class Endovis_18(Dataset):
                 for frame_no in os.listdir(frames_folder_path):
                     if 'png' not in frame_no:
                         continue
-                    for label_name in self.label_names:
-                        lbl_path = os.path.join(lbl_folder_path,frame_no)
+                    if self.no_text_mode:
                         self.img_names.append(frame_no)
-                        self.img_path_list.append(os.path.join(frames_folder_path, frame_no))
-                        self.label_list.append(label_name)
-                        self.label_path_list.append(lbl_path)
+                        self.img_path_list.append(os.path.join(frames_folder_path,frame_no))
+                        self.label_path_list.append(os.path.join(lbl_folder_path, frame_no))
+                        self.label_list.append('')
+                    else:
+                        for label_name in self.label_names:
+                            lbl_path = os.path.join(lbl_folder_path,frame_no)
+                            self.img_names.append(frame_no)
+                            self.img_path_list.append(os.path.join(frames_folder_path, frame_no))
+                            self.label_list.append(label_name)
+                            self.label_path_list.append(lbl_path)
 
     def __len__(self):
         return len(self.img_path_list)
@@ -580,23 +629,36 @@ class Endovis_18(Dataset):
         if self.config['data']['volume_channel']==2:
             img = img.permute(2,0,1)
         
-        temp = np.zeros(label.shape).astype('uint8')[:,:,0]
-        selected_color_list = self.label_dict[self.label_list[index]]
-        for c in selected_color_list:
-            temp = temp | (np.all(np.where(label==c,1,0),axis=2))
+        if self.no_text_mode:
+            mask = np.zeros((self.num_classes,img.shape[1], img.shape[2]))
+            for i,c in enumerate(list(self.label_dict.keys())):
+                temp = np.zeros(label.shape).astype('uint8')[:,:,0]
+                selected_color_list = self.label_dict[c]
+                for c in selected_color_list:
+                    temp = temp | (np.all(np.where(label==c,1,0),axis=2))
+                mask[i,:,:] = temp
+            mask = torch.Tensor(mask)
+            img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+            mask = (mask>=0.5)+0
+            label_of_interest = ''
+        else:
+            temp = np.zeros(label.shape).astype('uint8')[:,:,0]
+            selected_color_list = self.label_dict[self.label_list[index]]
+            for c in selected_color_list:
+                temp = temp | (np.all(np.where(label==c,1,0),axis=2))
 
-        mask = torch.Tensor(temp).unsqueeze(0)
-        label_of_interest = self.label_list[index]
-        img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
-        #convert all grayscale pixels due to resizing back to 0, 1
-        mask = (mask>=0.5)+0
-        mask = mask[0]
+            mask = torch.Tensor(temp).unsqueeze(0)
+            label_of_interest = self.label_list[index]
+            img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+            #convert all grayscale pixels due to resizing back to 0, 1
+            mask = (mask>=0.5)+0
+            mask = mask[0]
 
         return img, mask, self.img_path_list[index], label_of_interest
 
 
 class Endovis_Dataset(Dataset):
-    def __init__(self, config, start=0, end=200, is_train=False, shuffle_list = True, apply_norm=True):
+    def __init__(self, config, start=0, end=200, is_train=False, shuffle_list = True, apply_norm=True, no_text_mode=False):
         super().__init__()
         self.root_path = config['data']['root_path']
         self.img_names = []
@@ -607,8 +669,10 @@ class Endovis_Dataset(Dataset):
         self.start = start
         self.end = end
         self.label_names = config['data']['label_names']
+        self.num_classes = len(self.label_names)
         self.config = config
         self.apply_norm = apply_norm
+        self.no_text_mode = no_text_mode
 
         self.populate_lists()
         if shuffle_list:
@@ -631,44 +695,71 @@ class Endovis_Dataset(Dataset):
             frames_folder_path = os.path.join(self.root_path, dataset_num, 'left_frames')
             for frame_no in os.listdir(frames_folder_path):
                 if int(frame_no[5:8])>=self.start and int(frame_no[5:8])<self.end:
-                    for label_name in self.label_names:
-                        lbl_path = os.path.join(lbl_folder_path, label_name.replace(' ','_')+'_labels',frame_no)
-                        
-                        #important decision here - include all black labels or not
-                        # if not os.path.exists(lbl_path):
-                        #     continue
+                    if self.no_text_mode:
                         self.img_names.append(frame_no)
                         self.img_path_list.append(os.path.join(frames_folder_path, frame_no))
-                        self.label_list.append(label_name)
-                        self.label_path_list.append(lbl_path)
+                        self.label_path_list.append(lbl_folder_path)
+                        self.label_list.append('')
+                    else:
+                        for label_name in self.label_names:
+                            lbl_path = os.path.join(lbl_folder_path, label_name.replace(' ','_')+'_labels',frame_no)
+                            
+                            #important decision here - include all black labels or not
+                            # if not os.path.exists(lbl_path):
+                            #     continue
+                            self.img_names.append(frame_no)
+                            self.img_path_list.append(os.path.join(frames_folder_path, frame_no))
+                            self.label_list.append(label_name)
+                            self.label_path_list.append(lbl_path)
 
     def __len__(self):
         return len(self.img_path_list)
     
     def __getitem__(self, index):
         img = torch.as_tensor(np.array(Image.open(self.img_path_list[index]).convert("RGB")))
-        try:
-            label = torch.Tensor(np.array(Image.open(self.label_path_list[index])))
-        except:
-            label = torch.zeros(img.shape[0], img.shape[1])
-
         if self.config['data']['volume_channel']==2:
             img = img.permute(2,0,1)
-        label = label.unsqueeze(0)
-        label = (label>0)+0
-        label_of_interest = self.label_list[index]
-        img, label = self.data_transform(img, label, is_train=self.is_train, apply_norm=self.apply_norm)
 
-        #convert all grayscale pixels due to resizing back to 0, 1
-        label = (label>=0.5)+0
-        label = label[0]
+        if self.no_text_mode:
+            label = torch.zeros((self.num_classes,img.shape[1],img.shape[2]))
+            for i,label_name in enumerate(self.label_names):
+                try:
+                    lbl_path = os.path.join(self.label_path_list[index],label_name.replace(' ','_')+'_labels',self.img_names[index])
+                    # print("lbl path: ", lbl_path)
+                    label_part = torch.Tensor(np.array(Image.open(lbl_path)))
+                except:
+                    label_part = torch.zeros(img.shape[1], img.shape[2])
+                label[i,:,:] = label_part
+            label = (label>0)+0
+            img, label = self.data_transform(img, label, is_train=self.is_train, apply_norm=self.apply_norm)
+            label = (label>=0.5)+0
+            label_of_interest = ''
+            # print("img shape: ",img.shape)
+            # print("label shape: ", label.shape)
+            
+        else:
+            try:
+                label = torch.Tensor(np.array(Image.open(self.label_path_list[index])))
+            except:
+                label = torch.zeros(img.shape[0], img.shape[1])
+
+            
+            label = label.unsqueeze(0)
+            label = (label>0)+0
+            label_of_interest = self.label_list[index]
+            img, label = self.data_transform(img, label, is_train=self.is_train, apply_norm=self.apply_norm)
+
+            #convert all grayscale pixels due to resizing back to 0, 1
+            img, label = self.data_transform(img, label, is_train=self.is_train, apply_norm=self.apply_norm)
+            label = (label>=0.5)+0
+            label = label[0]
 
 
         return img, label, self.img_path_list[index], label_of_interest
 
 
 
-def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folder_end, use_norm=True):
+def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folder_end, use_norm=True, no_text_mode=False):
     dataset_dict = {}
     dataloader_dict = {}
     dataset_sizes = {}
@@ -688,33 +779,33 @@ def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folde
     elif config['data']['name']=='ENDOVIS':
         for x in ['train','val']:
             if x=='train':
-                dataset_dict[x] = Endovis_Dataset(config, start=0, end=180, shuffle_list=True, is_train=True, apply_norm=use_norm)
+                dataset_dict[x] = Endovis_Dataset(config, start=0, end=180, shuffle_list=True, is_train=True, apply_norm=use_norm, no_text_mode=no_text_mode)
             if x=='val':
-                dataset_dict[x] = Endovis_Dataset(config, start=180, end=330, shuffle_list=False, apply_norm=use_norm)
+                dataset_dict[x] = Endovis_Dataset(config, start=180, end=330, shuffle_list=False, apply_norm=use_norm, no_text_mode=no_text_mode)
             dataset_sizes[x] = len(dataset_dict[x])
 
     elif config['data']['name']=='ENDOVIS 18':
         for x in ['train','val']:
             if x=='train':
-                dataset_dict[x] = Endovis_18(config, start=0, end=18000, shuffle_list=True, is_train=True, apply_norm=use_norm)
+                dataset_dict[x] = Endovis_18(config, start=0, end=18000, shuffle_list=True, is_train=True, apply_norm=use_norm, no_text_mode=no_text_mode)
             if x=='val':
-                dataset_dict[x] = Endovis_18(config, start=0, end=33000, shuffle_list=False, apply_norm=use_norm, is_train=False)
+                dataset_dict[x] = Endovis_18(config, start=0, end=33000, shuffle_list=False, apply_norm=use_norm, is_train=False, no_text_mode=no_text_mode)
             dataset_sizes[x] = len(dataset_dict[x])
 
     elif config['data']['name']=='CHOLEC 8K':
         for x in ['train','val']:
             if x=='train':
-                dataset_dict[x] = Cholec_Ins_Dataset(config, shuffle_list=True, is_train=True, apply_norm=use_norm)
+                dataset_dict[x] = Cholec_Ins_Dataset(config, shuffle_list=True, is_train=True, apply_norm=use_norm, no_text_mode=no_text_mode)
             if x=='val':
-                dataset_dict[x] = Cholec_Ins_Dataset(config, shuffle_list=False, apply_norm=use_norm, is_train=False)
+                dataset_dict[x] = Cholec_Ins_Dataset(config, shuffle_list=False, apply_norm=use_norm, is_train=False, no_text_mode=no_text_mode)
             dataset_sizes[x] = len(dataset_dict[x])
     
     elif config['data']['name']=='ULTRASOUND':
         for x in ['train','val']:
             if x=='train':
-                dataset_dict[x] = Ultrasound_Dataset(config, shuffle_list=True, is_train=True, apply_norm=use_norm)
+                dataset_dict[x] = Ultrasound_Dataset(config, shuffle_list=True, is_train=True, apply_norm=use_norm, no_text_mode=no_text_mode)
             if x=='val':
-                dataset_dict[x] = Ultrasound_Dataset(config, shuffle_list=False, apply_norm=use_norm, is_train=False)
+                dataset_dict[x] = Ultrasound_Dataset(config, shuffle_list=False, apply_norm=use_norm, is_train=False, no_text_mode=no_text_mode)
             dataset_sizes[x] = len(dataset_dict[x])
 
     else:

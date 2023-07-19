@@ -1,6 +1,6 @@
 
 img_size: 256
-num_classes: 9
+num_classes: 10
 in_channels: 3
 img_type: 'image'
 arch: "UNet"

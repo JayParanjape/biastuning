@@ -105,6 +105,7 @@ def train(model, tr_dataset, val_dataset, criterion, optimizer, sav_path='./chec
 def train_dl(model, dataloaders, dataset_sizes, criterion, optimizer, scheduler, sav_path='./checkpoints/temp.pth', num_epochs=25, bs=32, device='cuda:0'):
     model = model.to(device)
     best_dice = 0
+    best_loss=10000
 
     print("Training parameters: \n----------")
     print("batch size: ", bs)
@@ -189,7 +190,7 @@ def train_dl(model, dataloaders, dataset_sizes, criterion, optimizer, scheduler,
             print(f'{phase} Loss: {epoch_loss:.4f} Dice: {epoch_dice:.4f}')            
 
             # deep copy the model
-            if phase == 'val' and epoch_dice > best_dice:
+            if phase == 'val' and epoch_loss < best_loss:
                 best_loss = epoch_loss
                 best_dice = epoch_dice
                 torch.save(model.state_dict(),sav_path)

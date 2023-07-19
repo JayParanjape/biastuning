@@ -8,6 +8,10 @@ sys.path.append("/home/ubuntu/Desktop/Domain_Adaptation_Project/repos/biastuning
 from data_utils import *
 from model import *
 from utils import *
+from baselines import UNet, UNext, medt_net
+from vit_seg_modeling import VisionTransformer
+from vit_seg_modeling import CONFIGS as CONFIGS_ViT_seg
+from axialnet import MedT
 
 label_names = ['Grasper', 'L Hook Electrocautery', 'Liver', 'Fat', 'Gall Bladder','Abdominal Wall','Gastrointestinal Tract','Cystic Duct','Blood','Hepatic Vein', 'Liver Ligament', 'Connective Tissue']
 # visualize_li = [[1,0,0],[0,1,0],[1,0,0], [0,0,1], [0,0,1]]
@@ -40,8 +44,6 @@ def parse_args():
 
     parser.add_argument('--device', default='cuda:0', help='device to train on')
 
-    parser.add_argument('--labels_of_interest', default='Left Prograsp Forceps,Maryland Bipolar Forceps,Right Prograsp Forceps,Left Large Needle Driver,Right Large Needle Driver', help='labels of interest')
-
     parser.add_argument('--codes', default='1,2,1,3,3', help='numeric label to save per instrument')
 
     args = parser.parse_args()
@@ -54,7 +56,6 @@ def main():
         data_config = yaml.load(f, Loader=yaml.FullLoader)
     with open(args.model_config, 'r') as f:
         model_config = yaml.load(f, Loader=yaml.FullLoader)
-    labels_of_interest = args.labels_of_interest.split(',')
     codes = args.codes.split(',')
     codes = [int(c) for c in codes]
 
@@ -81,8 +82,28 @@ def main():
         os.makedirs(os.path.join(args.save_path,"rescaled_gt"),exist_ok=True)
 
     #load model
-    model = Prompt_Adapted_SAM(config=model_config, label_text_dict=label_dict, device=args.device,training_strategy='biastuning')
-    model.load_state_dict(torch.load(args.pretrained_path, map_location=args.device),strict=False)
+    #change the img size in model config according to data config
+    in_channels = model_config['in_channels']
+    out_channels = model_config['num_classes']
+    img_size = model_config['img_size']
+    if model_config['arch']=='Prompt Adapted SAM':
+        model = Prompt_Adapted_SAM(model_config, label_dict, args.device, training_strategy='biastuning')
+    elif model_config['arch']=='UNet':
+        model = UNet(in_channels=in_channels, out_channels=out_channels)
+    elif model_config['arch']=='UNext':
+        model = UNext(num_classes=out_channels, input_channels=in_channels, img_size=img_size)
+    elif model_config['arch']=='MedT':
+        #TODO
+        model = MedT(img_size=img_size, num_classes=out_channels)
+    elif model_config['arch']=='TransUNet':
+        config_vit = CONFIGS_ViT_seg['R50-ViT-B_16']
+        config_vit.n_classes = out_channels
+        config_vit.n_skip = 3
+        # if args.vit_name.find('R50') != -1:
+        #     config_vit.patches.grid = (int(args.img_size / args.vit_patches_size), int(args.img_size / args.vit_patches_size))
+        model = VisionTransformer(config_vit, img_size=img_size, num_classes=config_vit.n_classes)
+
+    model.load_state_dict(torch.load(args.pretrained_path, map_location=args.device))
     model = model.to(args.device)
     model = model.eval()
 
@@ -95,7 +116,7 @@ def main():
 
     #load data
     for i,img_name in enumerate(sorted(os.listdir(args.data_folder))):
-        if i%20!=0:
+        if i%5!=0:
             continue
         img_path = (os.path.join(args.data_folder,img_name))
         if args.gt_path:
@@ -107,20 +128,17 @@ def main():
         C,H,W = img.shape
         #make a dummy mask of shape 1XHXW
         if args.gt_path:
-            label_of_interest = args.labels_of_interest
             gold = np.array(Image.open(gt_path))
-
             if len(gold.shape)==3:
                 gold = gold[:,:,0]
             if gold.max()<2:
                 gold = (gold*255).astype(int)
 
-            # plt.imshow(gold)
-            # plt.show()
-            mask = (gold==label_dict2[label_of_interest])
+            mask = np.zeros((len(label_dict2),img.shape[1], img.shape[2]))
+            for i,c in enumerate(list(label_dict2.keys())):
+                mask[i,:,:] = (gold==label_dict2[c])
             
             mask = torch.Tensor(mask+0)
-            mask = torch.Tensor(mask).unsqueeze(0)
 
         else:
             mask = torch.zeros((1,H,W))
@@ -129,47 +147,40 @@ def main():
 
         #get image embeddings
         img = img.unsqueeze(0).to(args.device)  #1XCXHXW
-        img_embeds = model.get_image_embeddings(img)
+        masks = model(img,'')
 
-        # generate masks for all labels of interest
-        img_embeds_repeated = img_embeds.repeat(len(labels_of_interest),1,1,1)
-        x_text = [t for t in labels_of_interest]
-        masks = model.get_masks_for_multiple_labels(img_embeds_repeated, x_text).cpu()
-        argmax_masks = torch.argmax(masks, dim=0)
-        final_mask = torch.zeros(masks[0].shape)
-        final_mask_rescaled = torch.zeros(masks[0].shape).unsqueeze(-1).repeat(1,1,3)
-        #save masks
-        for i in range(final_mask.shape[0]):
-            for j in range(final_mask.shape[1]):
-                final_mask[i,j] = codes[argmax_masks[i,j]] if masks[argmax_masks[i,j],i,j]>=0.5 else 0
-                # final_mask_rescaled[i,j] = torch.Tensor(visualize_dict[(labels_of_interest[argmax_masks[i,j]])] if masks[argmax_masks[i,j],i,j]>=0.5 else [0,0,0])
+        argmax_masks = torch.argmax(masks, dim=1).cpu().numpy()
+        # print("argmax masks shape: ",argmax_masks.shape)
 
-        # save_im = Image.fromarray(final_mask.numpy())
-        # save_im.save(os.path.join(args.save_path,'preds', img_name))
-
-        # plt.imshow(final_mask_rescaled,cmap='gray')
-        # plt.savefig(os.path.join(args.save_path,'rescaled_preds', img_name))
-        # plt.close()
-
-        # print("label shape: ", label.shape)
-        # plt.imshow(label[0], cmap='gray')
-        # plt.show()
-
-        plt.imshow((masks[0]>=0.5), cmap='gray')
-        plt.savefig(os.path.join(args.save_path,'rescaled_preds', img_name))
-        plt.close()
-
-        if args.gt_path:
-            plt.imshow((mask[0]), cmap='gray')
-            plt.savefig(os.path.join(args.save_path,'rescaled_gt', img_name))
+        classwise_dices = []
+        classwise_ious = []
+        for j,c1 in enumerate(label_dict):
+            res = np.where(argmax_masks==j,1,0)
+            # print("res shape: ",res.shape)
+            plt.imshow(res[0], cmap='gray')
+            save_dir = os.path.join(args.save_path, c1, 'rescaled_preds')
+            os.makedirs(save_dir, exist_ok=True)
+            plt.savefig(os.path.join(args.save_path, c1, 'rescaled_preds', img_name))
             plt.close()
 
-        # print("dice: ",dice_coef(label, (masks>0.5)+0))
-        dices.append(dice_coef(mask, (masks>=0.5)+0))
-        ious.append(iou_coef(mask, (masks>=0.5)+0))
+            if args.gt_path:
+                plt.imshow((mask[j]), cmap='gray')
+                save_dir = os.path.join(args.save_path, c1, 'rescaled_gt')
+                os.makedirs(save_dir, exist_ok=True)
+                plt.savefig(os.path.join(args.save_path, c1, 'rescaled_gt', img_name))
+                plt.close()
+
+                classwise_dices.append(dice_coef(mask[j], torch.Tensor(res[0])))
+                classwise_ious.append(iou_coef(mask[j], torch.Tensor(res[0])))
+
         # break
-    print(torch.mean(torch.Tensor(dices)))
-    print(torch.mean(torch.Tensor(ious)))
+        dices.append(classwise_dices)
+        ious.append(classwise_ious)
+        # print("classwise_dices: ", classwise_dices)
+        # print("classwise ious: ", classwise_ious)
+
+    print(torch.mean(torch.Tensor(dices),dim=0))
+    print(torch.mean(torch.Tensor(ious),dim=0))
 
 if __name__ == '__main__':
     main()
