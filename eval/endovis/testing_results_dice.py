@@ -7,11 +7,11 @@ import torch
 sys.path.append("/home/ubuntu/Desktop/Domain_Adaptation_Project/repos/biastuning/")
 from utils import *
 
-test_path = "/home/ubuntu/Desktop/Domain_Adaptation_Project/repos/biastuning/eval/endovis/unet_results"
+test_path = "/home/ubuntu/Desktop/Domain_Adaptation_Project/repos/biastuning/eval/endovis/samzs_results"
 
 #when not differentiating between the forceps, add mbp to the first tuple
-# instruments = [('lgr','rgr'),('llnd','rlnd'),('lpf','rpf')]
-instruments = [('Left Grasping Retractor','Right Grasping Retractor'),('Left Large Needle Driver','Right Large Needle Driver'),('Left Prograsp Forceps','Right Prograsp Forceps')]
+instruments = [('lgr','rgr'),('llnd','rlnd'),('lpf','rpf')]
+# instruments = [('Left Grasping Retractor','Right Grasping Retractor'),('Left Large Needle Driver','Right Large Needle Driver'),('Left Prograsp Forceps','Right Prograsp Forceps')]
 
 for dataset in sorted(os.listdir(test_path)):
     for instrument in instruments:

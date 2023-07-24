@@ -3,7 +3,7 @@ img_size: 256
 num_classes: 12
 in_channels: 3
 img_type: 'image'
-arch: "TransUNet"
+arch: "UNet"
 use_fdn: False
 
 training:

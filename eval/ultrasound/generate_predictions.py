@@ -78,7 +78,7 @@ def main():
 
     #load model
     model = Prompt_Adapted_SAM(config=model_config, label_text_dict=label_dict, device=args.device, training_strategy='biastuning')
-    model.load_state_dict(torch.load(args.pretrained_path, map_location=args.device))
+    model.load_state_dict(torch.load(args.pretrained_path, map_location=args.device), strict=False)
     model = model.to(args.device)
     model = model.eval()
 
