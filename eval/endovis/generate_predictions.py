@@ -81,8 +81,8 @@ def main():
 
     #load data
     for i,img_name in enumerate(sorted(os.listdir(args.data_folder))):
-        if i%5!=0:
-            continue
+        # if i%5!=0:
+        #     continue
         img_path = (os.path.join(args.data_folder,img_name))
         if args.gt_path:
             label_name = labels_of_interest[0].replace(' ','_')+'_labels'

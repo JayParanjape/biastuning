@@ -13,9 +13,10 @@ from vit_seg_modeling import VisionTransformer
 from vit_seg_modeling import CONFIGS as CONFIGS_ViT_seg
 from axialnet import MedT
 
-label_names = ['Left Prograsp Forceps', 'Maryland Bipolar Forceps', 'Right Prograsp Forceps', 'Left Large Needle Driver', 'Right Large Needle Driver', 'Left Grasping Retractor', 'Right Grasping Retractor', 'Vessel Sealer', 'Monopolar Curved Scissors']
+label_names = ['Effusion', 'Nodule', 'Cardiomegaly', 'Fibrosis', 'Consolidation', 'Emphysema', 'Mass', 'Fracture', 'Calcification', 'Pleural Thickening', 'Pneumothorax', 'Atelectasis', 'Diffuse Nodule']
+# visualize_li = [[1,0,0],[0,1,0],[1,0,0], [0,0,1], [0,0,1]]
 label_dict = {}
-visualize_dict = {}
+# visualize_dict = {}
 for i,ln in enumerate(label_names):
         label_dict[ln] = i
         # visualize_dict[ln] = visualize_li[i]
@@ -57,23 +58,30 @@ def main():
         model_config = yaml.load(f, Loader=yaml.FullLoader)
     codes = args.codes.split(',')
     codes = [int(c) for c in codes]
+
     label_dict = {
-            'Left Prograsp Forceps': 2,
-            'Maryland Bipolar Forceps': 1,
-            'Right Prograsp Forceps': 2,
-            'Left Large Needle Driver': 3,
-            'Right Large Needle Driver': 3,
-            'Left Grasping Retractor': 5,
-            'Right Grasping Retractor': 5,
-            'Vessel Sealer': 4,
-            'Monopolar Curved Scissors': 6
-        }
+            'Effusion': 1, 
+            'Nodule': 2, 
+            'Cardiomegaly': 3, 
+            'Fibrosis': 4, 
+            'Consolidation': 5, 
+            'Emphysema': 6, 
+            'Mass': 7, 
+            'Fracture': 8, 
+            'Calcification': 9, 
+            'Pleural Thickening': 10, 
+            'Pneumothorax': 11, 
+            'Atelectasis': 12, 
+            'Diffuse Nodule': 13
+            }
+
 
     #make folder to save visualizations
     os.makedirs(os.path.join(args.save_path,"preds"),exist_ok=True)
     os.makedirs(os.path.join(args.save_path,"rescaled_preds"),exist_ok=True)
     if args.gt_path:
         os.makedirs(os.path.join(args.save_path,"rescaled_gt"),exist_ok=True)
+
 
     #load model
     #change the img size in model config according to data config
@@ -102,42 +110,47 @@ def main():
     model = model.eval()
 
     #load data transform
-    data_transform = ENDOVIS_Transform(config=data_config)
+    data_transform = ChestXDet_Transform(config=data_config)
 
     #dice
     dices = []
-    ious = []
+    ious=[]
 
     #load data
     for i,img_name in enumerate(sorted(os.listdir(args.data_folder))):
-        # if i%5!=0:
+        # if i>20:
         #     continue
         img_path = (os.path.join(args.data_folder,img_name))
         if args.gt_path:
-            #for test data, the labels are arranged differently so uncomment the line below 
             gt_path = (os.path.join(args.gt_path,img_name))
-            # gt_path = (os.path.join(args.gt_path,label_name,img_name))
+            if not os.path.exists(gt_path):
+                gt_path = (os.path.join(args.gt_path,img_name[:-4]+'.png'))
+                if not os.path.exists(gt_path):
+                    continue
 
         # print(img_path)
         img = torch.as_tensor(np.array(Image.open(img_path).convert("RGB")))
         img = img.permute(2,0,1)
         C,H,W = img.shape
         #make a dummy mask of shape 1XHXW
+        label = np.array(Image.open(gt_path))
+
         if args.gt_path:
-            label = torch.as_tensor(np.array(Image.open(gt_path)))
+
             mask = np.zeros((len(label_dict),img.shape[1], img.shape[2]))
             for i,c in enumerate(list(label_dict.keys())):
-                mask[i,:,:] = ((label==label_dict[c])+0)
-            mask = torch.as_tensor(mask)
-        
+                temp = (label==label_dict[c])
+                mask[i,:,:] = temp
+            mask = torch.Tensor(mask+0)
+
         else:
             mask = torch.zeros((len(label_dict),H,W))
         img, mask = data_transform(img, mask, is_train=False, apply_norm=True)
         mask = (mask>=0.5)+0
 
-        #get image embeddings
         img = img.unsqueeze(0).to(args.device)  #1XCXHXW
         masks = model(img,'')
+        # print("masks shape: ",masks.shape)
 
         argmax_masks = torch.argmax(masks, dim=1).cpu().numpy()
         # print("argmax masks shape: ",argmax_masks.shape)
@@ -176,15 +189,6 @@ if __name__ == '__main__':
     main()
 
 
-# {
-# 	"Bipolar Forceps": 1,
-# 	"Prograsp Forceps": 2,
-# 	"Large Needle Driver": 3,
-# 	"Vessel Sealer": 4,
-# 	"Grasping Retractor": 5,
-#   "Monopolar Curved Scissors": 6,
-#   "Other": 7
-# }
-
+        
 
 

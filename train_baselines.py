@@ -85,6 +85,11 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
         dataloader_dict = {}
         for x in ['train','val']:
             dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
+    elif data_config['data']['name']=='CHESTXDET':
+        dataset_dict, dataset_sizes, label_dict = get_data(data_config, tr_folder_start=0, tr_folder_end=18000, val_folder_start=0, val_folder_end=34444, no_text_mode=True)
+        dataloader_dict = {}
+        for x in ['train','val']:
+            dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
     elif data_config['data']['name']=='CHOLEC 8K':
         dataset_dict, dataset_sizes, label_dict = get_data(data_config, tr_folder_start=0, tr_folder_end=18000, val_folder_start=0, val_folder_end=34444, no_text_mode=True)
         dataloader_dict = {}
@@ -154,6 +159,8 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
     elif data_config['data']['name']=='CHOLEC 8K':
         model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
     elif data_config['data']['name']=='ULTRASOUND':
+        model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
+    elif data_config['data']['name']=='CHESTXDET':
         model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
 
 

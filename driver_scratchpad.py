@@ -81,12 +81,22 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
         dataloader_dict = {}
         for x in ['train','val']:
             dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
+    elif data_config['data']['name']=='CHESTXDET':
+        dataset_dict, dataset_sizes, label_dict = get_data(data_config, tr_folder_start=0, tr_folder_end=18000, val_folder_start=0, val_folder_end=34444)
+        dataloader_dict = {}
+        for x in ['train','val']:
+            dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
     elif data_config['data']['name']=='CHOLEC 8K':
         dataset_dict, dataset_sizes, label_dict = get_data(data_config, tr_folder_start=0, tr_folder_end=18000, val_folder_start=0, val_folder_end=34444)
         dataloader_dict = {}
         for x in ['train','val']:
             dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
     elif data_config['data']['name']=='ULTRASOUND':
+        dataset_dict, dataset_sizes, label_dict = get_data(data_config, tr_folder_start=0, tr_folder_end=18000, val_folder_start=0, val_folder_end=34444)
+        dataloader_dict = {}
+        for x in ['train','val']:
+            dataloader_dict[x] = torch.utils.data.DataLoader(dataset_dict[x], batch_size=model_config['training']['batch_size'], shuffle=True, num_workers=4)
+    elif data_config['data']['name']=='KVASIRSEG':
         dataset_dict, dataset_sizes, label_dict = get_data(data_config, tr_folder_start=0, tr_folder_end=18000, val_folder_start=0, val_folder_end=34444)
         dataloader_dict = {}
         for x in ['train','val']:
@@ -172,7 +182,10 @@ def main_train(data_config, model_config, pretrained_path, save_path, training_s
         model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
     elif data_config['data']['name']=='ULTRASOUND':
         model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
-
+    elif data_config['data']['name']=='KVASIRSEG':
+        model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
+    elif data_config['data']['name']=='CHESTXDET':
+        model = train_dl(model, dataloader_dict, dataset_sizes, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=training_params['num_epochs'], bs=training_params['batch_size'], device=device)
 
 
 if __name__ == '__main__':
@@ -183,7 +196,7 @@ if __name__ == '__main__':
         model_config = yaml.load(f, Loader=yaml.FullLoader)
     
     # #for checking data_utils
-    main_datautils(data_config, use_norm=False)
+    # main_datautils(data_config, use_norm=False)
 
     # #for checking model
     # main_model(config=model_config)
@@ -192,4 +205,4 @@ if __name__ == '__main__':
     # main_test(data_config, model_config, args.pretrained_path)
 
     # for training the model
-    # main_train(data_config, model_config, args.pretrained_path, args.save_path, args.training_strategy, device=args.device)
+    main_train(data_config, model_config, args.pretrained_path, args.save_path, args.training_strategy, device=args.device)

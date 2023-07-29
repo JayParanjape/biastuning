@@ -9,7 +9,7 @@ from data_utils import *
 from model import *
 from utils import *
 
-label_names = ['background tissue', 'surgical instrument', 'kidney parenchyma', 'covered kidney', 'thread', 'clamps', 'suturing needle', 'suction instrument', 'small intestine','ultrasound probe']
+label_names = ['Effusion', 'Nodule', 'Cardiomegaly', 'Fibrosis', 'Consolidation', 'Emphysema', 'Mass', 'Fracture', 'Calcification', 'Pleural Thickening', 'Pneumothorax', 'Atelectasis', 'Diffuse Nodule']
 # visualize_li = [[1,0,0],[0,1,0],[1,0,0], [0,0,1], [0,0,1]]
 label_dict = {}
 # visualize_dict = {}
@@ -59,17 +59,20 @@ def main():
     codes = [int(c) for c in codes]
 
     label_dict = {
-            'background tissue': [[0,0,0]],
-            'surgical instrument': [[0,255,0],[0,255,255],[125,255,12]],
-            'kidney parenchyma': [[255,55,0]],
-            'covered kidney': [[24,55,125]],
-            'thread': [[187,155,25]],
-            'clamps': [[0,255,125]],
-            'suturing needle': [[255,255,125]],
-            'suction instrument': [[123,15,175]],
-            'small intestine': [[124,155,5]],
-            'ultrasound probe': [[12,255,141]]
-        }
+            'Effusion': 1, 
+            'Nodule': 2, 
+            'Cardiomegaly': 3, 
+            'Fibrosis': 4, 
+            'Consolidation': 5, 
+            'Emphysema': 6, 
+            'Mass': 7, 
+            'Fracture': 8, 
+            'Calcification': 9, 
+            'Pleural Thickening': 10, 
+            'Pneumothorax': 11, 
+            'Atelectasis': 12, 
+            'Diffuse Nodule': 13
+            }
 
 
     #make folder to save visualizations
@@ -80,13 +83,12 @@ def main():
 
     #load model
     model = Prompt_Adapted_SAM(config=model_config, label_text_dict=label_dict, device=args.device, training_strategy='biastuning')
-    if args.pretrained_path:
-        model.load_state_dict(torch.load(args.pretrained_path, map_location=args.device), strict=False)
+    model.load_state_dict(torch.load(args.pretrained_path, map_location=args.device), strict=False)
     model = model.to(args.device)
     model = model.eval()
 
     #load data transform
-    data_transform = Cholec_8k_Transform(config=data_config)
+    data_transform = ChestXDet_Transform(config=data_config)
 
     #dice
     dices = []
@@ -99,6 +101,10 @@ def main():
         img_path = (os.path.join(args.data_folder,img_name))
         if args.gt_path:
             gt_path = (os.path.join(args.gt_path,img_name))
+            if not os.path.exists(gt_path):
+                gt_path = (os.path.join(args.gt_path,img_name[:-4]+'.png'))
+                if not os.path.exists(gt_path):
+                    continue
 
         # print(img_path)
         img = torch.as_tensor(np.array(Image.open(img_path).convert("RGB")))
@@ -106,15 +112,14 @@ def main():
         C,H,W = img.shape
         #make a dummy mask of shape 1XHXW
         if args.gt_path:
-            label = np.array(Image.open(gt_path).convert("RGB"))
-            temp = np.zeros((H,W)).astype('uint8')
-            selected_color_list = label_dict[args.labels_of_interest]
-            for c in selected_color_list:
-                temp = temp | (np.all(np.where(label==c,1,0),axis=2))
+            label = np.array(Image.open(gt_path))
+            c = label_dict[args.labels_of_interest]
+            temp = (label==c)
 
             # plt.imshow(gold)
             # plt.show()
             mask = torch.Tensor(temp).unsqueeze(0)
+            mask = mask+0
 
         else:
             mask = torch.zeros((1,H,W))

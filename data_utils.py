@@ -20,6 +20,8 @@ from data_transforms.endovis_transform import ENDOVIS_Transform
 from data_transforms.endovis_18_transform import ENDOVIS_18_Transform
 from data_transforms.cholec_8k_transform import Cholec_8k_Transform
 from data_transforms.ultrasound_transform import Ultrasound_Transform
+from data_transforms.kvasirSeg_transform import kvasirSeg_Transform
+from data_transforms.ChestXDet_transform import ChestXDet_Transform
 
 class Slice_Transforms:
     def __init__(self, config=None):
@@ -544,6 +546,111 @@ class Cholec_Ins_Dataset(Dataset):
             # plt.show()
         return img, mask, self.img_path_list[index], label_of_interest
 
+class ChestXDet_Dataset(Dataset):
+    def __init__(self, config, start = 0, end = 69565, is_train=False, apply_norm=True, shuffle_list=True, no_text_mode=False) -> None:
+        super().__init__()
+        self.root_path = config['data']['root_path']
+        self.img_names = []
+        self.img_path_list = []
+        self.label_path_list = []
+        self.label_list = []
+        self.is_train = is_train
+        self.label_names = config['data']['label_names']
+        self.config = config
+        self.no_text_mode = no_text_mode
+        self.apply_norm = apply_norm
+        self.start = start
+        self.end = end
+        self.data_transform = ChestXDet_Transform(config=config)
+        self.label_dict = {
+            'Effusion': 1, 
+            'Nodule': 2, 
+            'Cardiomegaly': 3, 
+            'Fibrosis': 4, 
+            'Consolidation': 5, 
+            'Emphysema': 6, 
+            'Mass': 7, 
+            'Fracture': 8, 
+            'Calcification': 9, 
+            'Pleural Thickening': 10, 
+            'Pneumothorax': 11, 
+            'Atelectasis': 12, 
+            'Diffuse Nodule': 13
+            }
+        self.num_classes = len(list(self.label_dict.keys()))
+
+        #populate the above lists
+        self.populate_lists()
+        if shuffle_list:
+            p = [x for x in range(len(self.img_path_list))]
+            random.shuffle(p)
+            self.img_path_list = [self.img_path_list[pi] for pi in p]
+            self.img_names = [self.img_names[pi] for pi in p]
+            self.label_path_list = [self.label_path_list[pi] for pi in p]
+            self.label_list = [self.label_list[pi] for pi in p]
+
+    def populate_lists(self):
+        im_folder_path = os.path.join(self.root_path, 'images')
+        mask_folder_path = os.path.join(self.root_path, 'masks')
+        for im in os.listdir(im_folder_path):
+            if (int(im[:im.find('.')]) >= self.start) and (int(im[:im.find('.')])<=self.end):
+                im_path = os.path.join(im_folder_path, im)
+                label_img_path = os.path.join(mask_folder_path, im)
+                if self.no_text_mode:
+                    self.img_names.append(im)
+                    self.img_path_list.append(im_path)
+                    self.label_path_list.append(label_img_path)
+                    self.label_list.append('')
+                else:
+                    for label_name in self.label_names:
+                        self.img_names.append(im)
+                        self.img_path_list.append(im_path)
+                        self.label_path_list.append(label_img_path)
+                        self.label_list.append(label_name)
+    
+    def __len__(self):
+        return len(self.img_path_list)
+
+
+    def __getitem__(self, index):
+        img = torch.as_tensor(np.array(Image.open(self.img_path_list[index]).convert("RGB")))
+        if self.config['data']['volume_channel']==2:
+            img = img.permute(2,0,1)
+
+        label_of_interest = self.label_list[index]
+        gold = np.array(Image.open(self.label_path_list[index]))
+
+        if len(gold.shape)==3:
+            gold = gold[:,:,0]
+
+        if self.no_text_mode:
+            mask = np.zeros((self.num_classes,img.shape[1], img.shape[2]))
+            for i,c in enumerate(list(self.label_dict.keys())):
+                mask[i,:,:] = (gold==self.label_dict[c])
+            mask = torch.Tensor(mask)
+            img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+            mask = (mask>=0.5)+0
+            label_of_interest = ''
+        else:
+            # plt.imshow(gold)
+            # plt.show()
+            mask = (gold==self.label_dict[label_of_interest])
+            
+            mask = torch.Tensor(mask+0)
+            mask = torch.Tensor(mask).unsqueeze(0)
+            
+
+            img, mask = self.data_transform(img, mask, is_train=self.is_train, apply_norm=self.apply_norm)
+
+            # plt.imshow(mask, cmap='gray')
+            # plt.show()
+            #convert all grayscale pixels due to resizing back to 0, 1
+            mask = (mask>=0.5)+0
+            mask = mask[0]
+            # plt.imshow(mask, cmap='gray')
+            # plt.show()
+        return img, mask, self.img_path_list[index], label_of_interest
+
 
 class Endovis_18(Dataset):
     def __init__(self, config, start=0, end=200, is_train=False, shuffle_list = True, apply_norm=True, no_text_mode=False):
@@ -757,7 +864,86 @@ class Endovis_Dataset(Dataset):
 
         return img, label, self.img_path_list[index], label_of_interest
 
+    def __len__(self):
+        return len(self.img_path_list)
 
+    
+
+class KvasirSeg_Dataset(Dataset):
+    def __init__(self, config, is_train=False, shuffle_list = True, apply_norm=True, no_text_mode=False):
+        super().__init__()
+        self.root_path = config['data']['root_path']
+        self.img_names = []
+        self.img_path_list = []
+        self.label_path_list = []
+        self.label_list = []
+        self.is_train = is_train
+        self.label_names = config['data']['label_names']
+        self.num_classes = len(self.label_names)
+        self.config = config
+        self.apply_norm = apply_norm
+        self.no_text_mode = no_text_mode
+
+        self.populate_lists()
+        if shuffle_list:
+            p = [x for x in range(len(self.img_path_list))]
+            random.shuffle(p)
+            self.img_path_list = [self.img_path_list[pi] for pi in p]
+            self.img_names = [self.img_names[pi] for pi in p]
+            self.label_path_list = [self.label_path_list[pi] for pi in p]
+            self.label_list = [self.label_list[pi] for pi in p]
+
+        #define data transform
+        self.data_transform = kvasirSeg_Transform(config=config)
+    
+    def __len__(self):
+        return len(self.img_path_list)
+    
+    def populate_lists(self):
+
+        if self.is_train:
+            imgs_path = os.path.join(self.root_path, "train/images")
+            masks_path = os.path.join(self.root_path, "train/masks")
+        else:
+            imgs_path = os.path.join(self.root_path, "val/images")
+            masks_path = os.path.join(self.root_path, "val/masks")
+        
+        for i in os.listdir(imgs_path):
+            if self.no_text_mode:
+                self.img_names.append(i)
+                self.img_path_list.append(os.path.join(imgs_path,i))
+                self.label_path_list.append(os.path.join(masks_path, i))
+                self.label_list.append('')
+            else:
+                for label_name in self.label_names:
+                    self.img_names.append(i)
+                    self.img_path_list.append(os.path.join(imgs_path,i))
+                    self.label_path_list.append(os.path.join(masks_path, i))
+                    self.label_list.append(label_name)
+
+    def __getitem__(self, index):
+        img = torch.as_tensor(np.array(Image.open(self.img_path_list[index]).convert("RGB")))
+        if self.config['data']['volume_channel']==2:
+            img = img.permute(2,0,1)
+            
+        try:
+            label = torch.Tensor(np.array(Image.open(self.label_path_list[index])))[:,:,0]
+        except:
+            label = torch.zeros(img.shape[1], img.shape[2])
+
+        
+        label = label.unsqueeze(0)
+        label = (label>0)+0
+        label_of_interest = self.label_list[index]
+        img, label = self.data_transform(img, label, is_train=self.is_train, apply_norm=self.apply_norm)
+
+        #convert all grayscale pixels due to resizing back to 0, 1
+        img, label = self.data_transform(img, label, is_train=self.is_train, apply_norm=self.apply_norm)
+        label = (label>=0.5)+0
+        label = label[0]
+
+
+        return img, label, self.img_path_list[index], label_of_interest
 
 def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folder_end, use_norm=True, no_text_mode=False):
     dataset_dict = {}
@@ -792,6 +978,14 @@ def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folde
                 dataset_dict[x] = Endovis_18(config, start=0, end=33000, shuffle_list=False, apply_norm=use_norm, is_train=False, no_text_mode=no_text_mode)
             dataset_sizes[x] = len(dataset_dict[x])
 
+    elif config['data']['name']=='CHESTXDET':
+        for x in ['train','val']:
+            if x=='train':
+                dataset_dict[x] = ChestXDet_Dataset(config, start=0, end=69565, shuffle_list=True, is_train=True, apply_norm=use_norm, no_text_mode=no_text_mode)
+            if x=='val':
+                dataset_dict[x] = ChestXDet_Dataset(config, start=69566, end=83000, shuffle_list=False, apply_norm=use_norm, is_train=False, no_text_mode=no_text_mode)
+            dataset_sizes[x] = len(dataset_dict[x])
+
     elif config['data']['name']=='CHOLEC 8K':
         for x in ['train','val']:
             if x=='train':
@@ -806,6 +1000,14 @@ def get_data(config, tr_folder_start, tr_folder_end, val_folder_start, val_folde
                 dataset_dict[x] = Ultrasound_Dataset(config, shuffle_list=True, is_train=True, apply_norm=use_norm, no_text_mode=no_text_mode)
             if x=='val':
                 dataset_dict[x] = Ultrasound_Dataset(config, shuffle_list=False, apply_norm=use_norm, is_train=False, no_text_mode=no_text_mode)
+            dataset_sizes[x] = len(dataset_dict[x])
+
+    elif config['data']['name']=='KVASIRSEG':
+        for x in ['train','val']:
+            if x=='train':
+                dataset_dict[x] = KvasirSeg_Dataset(config, shuffle_list=True, is_train=True, apply_norm=use_norm, no_text_mode=no_text_mode)
+            if x=='val':
+                dataset_dict[x] = KvasirSeg_Dataset(config, shuffle_list=False, apply_norm=use_norm, is_train=False, no_text_mode=no_text_mode)
             dataset_sizes[x] = len(dataset_dict[x])
 
     else:

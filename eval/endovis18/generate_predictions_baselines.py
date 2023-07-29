@@ -115,8 +115,8 @@ def main():
 
     #load data
     for i,img_name in enumerate(sorted(os.listdir(args.data_folder))):
-        if i%5!=0:
-            continue
+        # if i%5!=0:
+        #     continue
         img_path = (os.path.join(args.data_folder,img_name))
         if args.gt_path:
             gt_path = (os.path.join(args.gt_path,img_name))

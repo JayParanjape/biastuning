@@ -1,0 +1,18 @@
+data_transforms:
+  a_min: 0
+  a_max: 255
+  img_size: 256
+  use_random_crop: False
+  use_rotation: True
+  rotation_angle: 10
+  use_saturation: False
+  saturation: 2
+  use_brightness: True
+  brightness: 2
+  use_horizontal_flip: False
+data:
+  name: KVASIRSEG
+  root_path: '/home/ubuntu/Desktop/Domain_Adaptation_Project/data/kvasir-seg/Kvasir-SEG'
+  label_list: [1]
+  label_names: ['Polyp']
+  volume_channel: 2

@@ -1,0 +1,18 @@
+data_transforms:
+  a_min: 0
+  a_max: 255
+  img_size: 256
+  use_random_crop: False
+  use_rotation: False
+  rotation_angle: 10
+  use_saturation: False
+  saturation: 2
+  use_brightness: False
+  brightness: 2
+  use_horizontal_flip: False
+data:
+  name: CHESTXDET
+  root_path: '/media/ubuntu/New Volume/jay/ChestXDet/train_data'
+  label_list: [1,2,3,4,5,6,7,8,9,10,11,12,13]
+  label_names: ['Effusion', 'Nodule', 'Cardiomegaly', 'Fibrosis', 'Consolidation', 'Emphysema', 'Mass', 'Fracture', 'Calcification', 'Pleural Thickening', 'Pneumothorax', 'Atelectasis', 'Diffuse Nodule']
+  volume_channel: 2

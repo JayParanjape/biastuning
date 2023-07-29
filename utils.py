@@ -57,9 +57,7 @@ def focal_loss(y_pred, y_true, alpha_def=0.75, gamma=3):
     alpha = alpha_def
     ce_loss = F.binary_cross_entropy_with_logits(y_pred, y_true, reduction="none")
     assert (ce_loss>=0).all()
-    print(ce_loss.shape)
     p_t = y_pred * y_true + (1 - y_pred) * (1 - y_true)
-    print(p_t.shape)
     # 1/0
     loss = ce_loss * ((1 - p_t) ** gamma)
     alpha_t = alpha * y_true + (1 - alpha) * (1 - y_true)
