@@ -1,0 +1,343 @@
+<script src="http://www.google.com/jsapi" type="text/javascript"></script> 
+<script type="text/javascript">google.load("jquery", "1.3.2");</script>
+
+<style type="text/css">
+	body {
+		font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif; 
+		font-weight:300;
+		font-size:18px;
+		margin-left: auto;
+		margin-right: auto;
+		width: 1100px;
+	}
+	
+	h1 {
+		font-size:32px;
+		font-weight:300;
+	}
+	
+	.disclaimerbox {
+		background-color: #eee;		
+		border: 1px solid #eeeeee;
+		border-radius: 10px ;
+		-moz-border-radius: 10px ;
+		-webkit-border-radius: 10px ;
+		padding: 20px;
+	}
+
+	video.header-vid {
+		height: 140px;
+		border: 1px solid black;
+		border-radius: 10px ;
+		-moz-border-radius: 10px ;
+		-webkit-border-radius: 10px ;
+	}
+	
+	img.header-img {
+		height: 140px;
+		border: 1px solid black;
+		border-radius: 10px ;
+		-moz-border-radius: 10px ;
+		-webkit-border-radius: 10px ;
+	}
+	
+	img.rounded {
+		border: 1px solid #eeeeee;
+		border-radius: 10px ;
+		-moz-border-radius: 10px ;
+		-webkit-border-radius: 10px ;
+	}
+	
+	a:link,a:visited
+	{
+		color: #1367a7;
+		text-decoration: none;
+	}
+	a:hover {
+		color: #208799;
+	}
+	
+	td.dl-link {
+		height: 160px;
+		text-align: center;
+		font-size: 22px;
+	}
+	
+	.layered-paper-big { /* modified from: http://css-tricks.com/snippets/css/layered-paper/ */
+		box-shadow:
+		0px 0px 1px 1px rgba(0,0,0,0.35), /* The top layer shadow */
+		5px 5px 0 0px #fff, /* The second layer */
+		5px 5px 1px 1px rgba(0,0,0,0.35), /* The second layer shadow */
+		10px 10px 0 0px #fff, /* The third layer */
+		10px 10px 1px 1px rgba(0,0,0,0.35), /* The third layer shadow */
+		15px 15px 0 0px #fff, /* The fourth layer */
+		15px 15px 1px 1px rgba(0,0,0,0.35), /* The fourth layer shadow */
+		20px 20px 0 0px #fff, /* The fifth layer */
+		20px 20px 1px 1px rgba(0,0,0,0.35), /* The fifth layer shadow */
+		25px 25px 0 0px #fff, /* The fifth layer */
+		25px 25px 1px 1px rgba(0,0,0,0.35); /* The fifth layer shadow */
+		margin-left: 10px;
+		margin-right: 45px;
+	}
+
+	.paper-big { /* modified from: http://css-tricks.com/snippets/css/layered-paper/ */
+		box-shadow:
+		0px 0px 1px 1px rgba(0,0,0,0.35); /* The top layer shadow */
+
+		margin-left: 10px;
+		margin-right: 45px;
+	}
+
+
+	.layered-paper { /* modified from: http://css-tricks.com/snippets/css/layered-paper/ */
+		box-shadow:
+		0px 0px 1px 1px rgba(0,0,0,0.35), /* The top layer shadow */
+		5px 5px 0 0px #fff, /* The second layer */
+		5px 5px 1px 1px rgba(0,0,0,0.35), /* The second layer shadow */
+		10px 10px 0 0px #fff, /* The third layer */
+		10px 10px 1px 1px rgba(0,0,0,0.35); /* The third layer shadow */
+		margin-top: 5px;
+		margin-left: 10px;
+		margin-right: 30px;
+		margin-bottom: 5px;
+	}
+	
+	.vert-cent {
+		position: relative;
+		top: 50%;
+		transform: translateY(-50%);
+	}
+	
+	hr
+	{
+		border: 0;
+		height: 1px;
+		background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+	}
+</style>
+
+<html>
+<head>
+	<title>AdaptiveSAM: Towards Efficient Tuning of SAM
+        for Surgical Scene Segmentation</title>
+	<meta property="og:image" content="Path to my teaser.png"/> <!-- Facebook automatically scrapes this. Go to https://developers.facebook.com/tools/debug/ if you update and want to force Facebook to rescrape. -->
+	<meta property="og:title" content="AdaptiveSAM: Towards Efficient Tuning of SAM
+    for Surgical Scene Segmentation." />
+	<meta property="og:description" content="AdaptiveSAM: Towards Efficient Tuning of SAM
+    for Surgical Scene Segmentation." />
+
+	<!-- Get from Google Analytics -->
+	<!-- Global site tag (gtag.js) - Google Analytics -->
+	<script async src=""></script> 
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag(){dataLayer.push(arguments);}
+		gtag('js', new Date());
+
+		gtag('config', 'UA-75863369-6');
+	</script>
+</head>
+
+<body>
+	<br>
+	<center>
+		<span style="font-size:36px">AdaptiveSAM: Towards Efficient Tuning of SAM
+            for Surgical Scene Segmentation</span>
+		<table align=center width=600px>
+			<table align=center width=800px>
+				<tr>
+					<td align=center colspan="2">
+						<center>
+							<span style="font-size:24px"><a href="https://scholar.google.com/citations?user=BcBltw8AAAAJ&hl=en">Jay N. Paranjape</a></span>
+						</center>
+					</td>
+					<td align=center colspan="2">
+						<center>
+							<span style="font-size:24px"><a href="https://nithin-gk.github.io/">Nithin Gopalakrishnan Nair</a></span>
+						</center>
+					</td>
+					<td align=center colspan="2">
+						<center>
+							<span style="font-size:24px"><a href="https://www.hopkinsmedicine.org/profiles/details/shameema-sikder">Shameema Sikder</a></span>
+						</center>
+					</td>
+                    <td align=center colspan="2">
+						<center>
+							<span style="font-size:24px"><a href="https://malonecenter.jhu.edu/people/swaroop-vedula/">S. Swaroop Vedula</a></span>
+						</center>
+					</td>
+                    <td align=center colspan="2">
+						<center>
+							<span style="font-size:24px"><a href="https://engineering.jhu.edu/vpatel36/team/vishalpatel/">Vishal M. Patel</a></span>
+						</center>
+					</td>
+				</tr>
+                <tr>
+					<td align=center colspan="10">
+						<center>
+							<span style="font-size:24px"><a href="https://en.wikipedia.org/wiki/James_J._Gibson">Johns Hopkins University</a></span>
+						</center>
+					</td>
+                </tr>
+			</table>
+			<table align=center width=250px>
+				<tr>
+					<td align=center width=120px>
+						<center>
+							<span style="font-size:24px"><a href=''>[Paper]</a></span>
+						</center>
+					</td>
+					<td align=center width=120px>
+						<center>
+							<span style="font-size:24px"><a href='https://github.com/JayParanjape/biastuning'>[GitHub]</a></span><br>
+						</center>
+					</td>
+				</tr>
+			</table>
+		</table>
+	</center>
+
+	<center>
+		<table align=center width=850px>
+			<tr>
+				<td width=260px>
+					<center>
+						<img src="./resources/intro_fig2.png"/>
+					</center>
+				</td>
+			</tr>
+		</table>
+		<table align=center width=850px>
+			<tr>
+				<td width=260px>
+					<center>
+						<img class="round" style="width:700px" src="./resources/model_arch2.png"/>
+					</center>
+				</td>
+			</tr>
+		</table>
+	</center>
+
+	<hr>
+
+	<table align=center width=850px>
+		<center><h1>Abstract</h1></center>
+		<tr>
+			<td>
+				Present-day surgical scene segmentation techniques require training large deep networks with millions of parameters every time new data becomes available. Recently, a foundation model Segment-Anything (SAM) got released that generalizes well to a large variety of natural images, hence tackling this challenge to a reasonable extent on natural image datasets. However, SAM cannot be transferred to the medical domain as it is without utilizing a large amount of compute resources for fine-tuning and utilizing task-specific prompts. Moreover, for SAM, these prompts are bounding boxes or foreground/background points that need to be annotated explicitly for every image, making this solution increasingly tedious with higher data size. In this work, we propose an efficient finetuning strategy for SAM that requires significantly less trainable parameters and negligible expert involvement. Our experiments show that our approach outperforms current state-of-the-art methods on various datasets and can perform precise text-specific segmentation masks for a given dataset.
+			</td>
+		</tr>
+	</table>
+	<br>
+	<hr>
+
+    <table align=center width=850px>
+		<center><h1>Method</h1></center>
+		<tr>
+			<td>
+                Adaptive SAM uses the same architecture as SAM. However, for training it for a given surgical dataset, we add trainable shift variables(biases) to its image encoder, while keeping the other weights of the encoder frozen. The only trainable parameters in AdaptiveSAM are these shift parameters, norm layers and the mask decoder, which amount to less than 2% of SAM's parameters. This makes AdaptiveSAM more compute efficient and quicker to train.
+                Further, unlike other adaptation methods for SAM which use bounding boxes or text prompts as input, AdaptiveSAM only expects free-form text as a prompt. This can be as simple as the label name. Hence, it does not require medical expertise to use unlike other methods like MedSAM or MedSAM Adaptor. 
+                The text is converted to embeddings using CLIP, followed by an additional trainable transform called the Text Affine Layer. Since CLIP is not trained on medical terminology, it is expected to perform poorly with labels from the surgery corpus. Hence, AdaptiveSAM learns a lightweight affine transformation to make the CLIP embeddings more discriminative. The mask decoder then fuses these transformed text embeddings along with the image encoder output to produce a mask corresponding to the text prompt.   
+			</td>
+		</tr>
+	</table>
+	<br>
+	<hr>
+
+    <table align=center width=850px>
+		<center><h1>Results on Surgical Datasets</h1></center>
+		<tr>
+			<td width=260px>
+                <center>
+                    <img class="round" style="width:500px" src="./resources/images_preds2_datalabels.png"/>
+                </center>
+            </td>
+		</tr>
+        <tr>
+			<td>
+				Adaptive SAM produces precise and less noisy masks. If an object related to the text query is not present in the image, Adaptive SAM returns a blank mask. Since the pretrained weights of SAM are used to initialize our model, it retains the property of producing closed masks. This results in less noisy masks as compared to other methods.
+			</td>
+		</tr>
+	</table>
+	<br>
+	<hr>
+
+    <table align=center width=850px>
+		<center><h1>Results on Non-Surgical Datasets</h1></center>
+		<tr>
+			<td width=260px>
+                <center>
+                    <img class="round" style="width:500px" src="./resources/images_preds_US_2_datalabels.png"/>
+                </center>
+            </td>
+		</tr>
+        <tr>
+			<td>
+				Adaptive SAM is not restricted to the surgical domain. The training strategy and architectural changes can be used for any dataset, making our method generalizable. This can be seen iin our results on different modalities like X-Ray and Ultrasound.
+			</td>
+		</tr>
+	</table>
+	<br>
+	<hr>
+
+    <table align=center width=850px>
+		<center><h1>Spatial Learning Capabliities of Adaptive SAM</h1></center>
+		<tr>
+			<td width=260px>
+                <center>
+                    <img class="round" style="width:500px" src="./resources/spatial.png"/>
+                </center>
+            </td>
+		</tr>
+        <tr>
+			<td>
+				From the top left, in clockwise order, image, ground truth, prediction with the text prompt ”Right Large Needle Driver” and prediction with the text prompt ”Left Large Needle Driver”.
+                In the left image, there are two needle drivers. Adaptive SAM can learn to represent complex queries like Left/Right Large Needle Driver and only segments the corresponding instrument.
+                In the right image, only the right instrument is present and hence, Adaptive SAM correctly outputs a blank mask for the query "Left Large Needle Driver".
+			</td>
+		</tr>
+	</table>
+	<br>
+	<hr>
+
+	<table align=center width=850px>
+		<center><h1>Paper and Supplementary Material</h1></center>
+		<tr>
+			<td><a href=""><img class="layered-paper-big" style="height:175px" src="./resources/paper.png"/></a></td>
+			<td><span style="font-size:14pt"><br>
+				<b>AdaptiveSAM: Towards Efficient Tuning of SAM for Surgical Scene Segmentation</b><br>
+				<br>
+				(hosted on <a href="">ArXiv</a>)<br>
+				<!-- (<a href="./resources/camera-ready.pdf">camera ready</a>)<br> -->
+				<span style="font-size:4pt"><a href=""><br></a>
+				</span>
+			</td>
+		</tr>
+	</table>
+	<br>
+
+	<table align=center width=600px>
+		<tr>
+			<td><span style="font-size:14pt"><center>
+				<a href="./resources/bibtex.txt">[Bibtex]</a>
+			</center></td>
+		</tr>
+	</table>
+
+	<hr>
+	<br>
+
+	<table align=center width=900px>
+		<tr>
+			<td width=400px>
+				<left>
+					<center><h1>Acknowledgements</h1></center>
+					This template was originally made by <a href="http://web.mit.edu/phillipi/">Phillip Isola</a> and <a href="http://richzhang.github.io/">Richard Zhang</a> for a <a href="http://richzhang.github.io/colorization/">colorful</a> ECCV project; the code can be found <a href="https://github.com/richzhang/webpage-template">here</a>.
+				</left>
+			</td>
+		</tr>
+	</table>
+
+<br>
+</body>
+</html>
