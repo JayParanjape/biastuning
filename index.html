@@ -203,7 +203,7 @@
 			<tr>
 				<td width=260px>
 					<center>
-						<img src="./resources/intro_fig_3.png"/>
+						<img class="round" style="width:850px" src="./resources/intro_fig_3.png"/>
 					</center>
 				</td>
 			</tr>
@@ -212,7 +212,7 @@
 			<tr>
 				<td width=260px>
 					<center>
-						<img  src="./resources/model_arch2.png"/>
+						<img class="round" style="width:850px" src="./resources/model_arch2.png"/>
 					</center>
 				</td>
 			</tr>
@@ -224,7 +224,7 @@
 	<table align=center width=850px>
 		<center><h1>Abstract</h1></center>
 		<tr>
-			<td>
+			<td align="justify">
 				Present-day surgical scene segmentation techniques require training large deep networks with millions of parameters every time new data becomes available. Recently, a foundation model Segment-Anything (SAM) got released that generalizes well to a large variety of natural images, hence tackling this challenge to a reasonable extent on natural image datasets. However, SAM cannot be transferred to the medical domain as it is without utilizing a large amount of compute resources for fine-tuning and utilizing task-specific prompts. Moreover, for SAM, these prompts are bounding boxes or foreground/background points that need to be annotated explicitly for every image, making this solution increasingly tedious with higher data size. In this work, we propose an efficient finetuning strategy for SAM that requires significantly less trainable parameters and negligible expert involvement. Our experiments show that our approach outperforms current state-of-the-art methods on various datasets and can perform precise text-specific segmentation masks for a given dataset.
 			</td>
 		</tr>
@@ -235,7 +235,7 @@
     <table align=center width=850px>
 		<center><h1>Method</h1></center>
 		<tr>
-			<td>
+			<td align="justify">
                 Adaptive SAM uses the same architecture as SAM. However, for training it for a given surgical dataset, we add trainable shift variables(biases) to its image encoder, while keeping the other weights of the encoder frozen. The only trainable parameters in AdaptiveSAM are these shift parameters, norm layers and the mask decoder, which amount to less than 2% of SAM's parameters. This makes AdaptiveSAM more compute efficient and quicker to train.
                 Further, unlike other adaptation methods for SAM which use bounding boxes or text prompts as input, AdaptiveSAM only expects free-form text as a prompt. This can be as simple as the label name. Hence, it does not require medical expertise to use unlike other methods like MedSAM or MedSAM Adaptor. 
                 The text is converted to embeddings using CLIP, followed by an additional trainable transform called the Text Affine Layer. Since CLIP is not trained on medical terminology, it is expected to perform poorly with labels from the surgery corpus. Hence, AdaptiveSAM learns a lightweight affine transformation to make the CLIP embeddings more discriminative. The mask decoder then fuses these transformed text embeddings along with the image encoder output to produce a mask corresponding to the text prompt.   
@@ -255,7 +255,7 @@
             </td>
 		</tr>
         <tr>
-			<td>
+			<td align="justify">
 				Adaptive SAM provides greater control than the original SAM through text prompts. Regular SAM without any prompts(second column) segments everything without any notion of knowing which mask represents which class. Further, for AdaptiveSAM, there is no need for expert intervention through points or bounding boxes as the object label is all it needs to segment. While original SAM also has the capability of text prompts(as shown in the third column), we show that our method greatly improves upon this.
 			</td>
 		</tr>
@@ -267,7 +267,7 @@
             </td>
 		</tr>
         <tr>
-			<td>
+			<td align="justify">
 				Adaptive SAM produces precise and less noisy masks. If an object related to the text query is not present in the image, Adaptive SAM returns a blank mask. Since the pretrained weights of SAM are used to initialize our model, it retains the property of producing closed masks. This results in less noisy masks as compared to other methods.
 			</td>
 		</tr>
@@ -285,7 +285,7 @@
             </td>
 		</tr>
         <tr>
-			<td>
+			<td align="justify">
 				Adaptive SAM is not restricted to the surgical domain. The training strategy and architectural changes can be used for any dataset, making our method generalizable. This can be seen iin our results on different modalities like X-Ray and Ultrasound.
 			</td>
 		</tr>
@@ -303,7 +303,7 @@
             </td>
 		</tr>
         <tr>
-			<td>
+			<td align="justify">
 				From the top left, in clockwise order, image, ground truth, prediction with the text prompt ”Right Large Needle Driver” and prediction with the text prompt ”Left Large Needle Driver”.
                 In the left image, there are two needle drivers. Adaptive SAM can learn to represent complex queries like Left/Right Large Needle Driver and only segments the corresponding instrument.
                 In the right image, only the right instrument is present and hence, Adaptive SAM correctly outputs a blank mask for the query "Left Large Needle Driver".
