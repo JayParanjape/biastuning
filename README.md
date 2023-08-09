@@ -33,5 +33,12 @@ python generate_predictions.py --model_config config_model_test.yml --data_confi
 
 ## Citation
 ```
-To be filled
+@misc{paranjape2023adaptivesam,
+      title={AdaptiveSAM: Towards Efficient Tuning of SAM for Surgical Scene Segmentation}, 
+      author={Jay N. Paranjape and Nithin Gopalakrishnan Nair and Shameema Sikder and S. Swaroop Vedula and Vishal M. Patel},
+      year={2023},
+      eprint={2308.03726},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
 ```
