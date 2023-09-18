@@ -19,7 +19,10 @@ conda activate biastuning_env
 - model_biastuning.yml - config file for defining various model hyperparameters for AdaptiveSAM
 - model_baselines.yml - config file for different baseline models
 - config_<dataset_name>.yml - config file for defining various dataset related hyperparameters
-  
+
+## Link to model checkpoints
+[GDrive](https://drive.google.com/drive/folders/15XcLcB4AS376MPyMLNob77VWAuev0U6S?usp=drive_link)
+
 ## Example Usage for Training
 ```
 python driver_scratchpad.py --model_config model_biastuning.yml --data_config config_cholec8k.yml --save_path "./temp.pth"
